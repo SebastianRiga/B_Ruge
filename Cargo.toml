@@ -1,0 +1,18 @@
+[package]
+name = "bionic_rouge"
+version = "0.1.0"
+edition = "2018"
+description = "Shadowrun inspired dungeon crawler written in Rust"
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/SebastianRiga"
+keywords = [ "gamedev", "rust", "rougelike", "dungeon", "crawler" ]
+categories = [ "games" ]
+publish = false
+maintenance = { status = "actively-developed" }
+repository = "https://github.com/SebastianRiga/Bionic_Rouge"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rltk = { version = "0.8.1" }
