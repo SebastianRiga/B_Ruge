@@ -1,6 +1,6 @@
 [package]
 name = "bionic_rouge"
-version = "0.1.0"
+version = "0.2.1"
 edition = "2018"
 description = "Shadowrun inspired dungeon crawler written in Rust"
 license = "MIT"
