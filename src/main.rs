@@ -1,90 +1,21 @@
-use rltk::{GameState, Rltk, RltkBuilder, VirtualKeyCode, RGB};
+#![warn(missing_docs)]
+
+//! dsfasdf
+
+use rltk::{RltkBuilder, RGB};
 use specs::prelude::*;
-use specs_derive::Component;
-use std::cmp::{max, min};
 
-struct State {
-    ecs: World,
-}
+mod state;
+pub use state::*;
 
-impl GameState for State {
-    fn tick(&mut self, ctx: &mut Rltk) {
-        ctx.cls();
+mod components;
+pub use components::*;
 
-        player_handle_input(self, ctx);
-        self.run_systems();
-        let positions = self.ecs.read_storage::<Position>();
-        let renderables = self.ecs.read_storage::<Renderable>();
+mod player;
+pub use player::*;
 
-        for (pos, render) in (&positions, &renderables).join() {
-            ctx.set(pos.x, pos.y, render.fg, render.bg, render.symbol)
-        }
-    }
-}
-
-impl State {
-    fn run_systems(&mut self) {
-        let mut left_walker = LeftMover {};
-        left_walker.run_now(&self.ecs);
-        self.ecs.maintain();
-    }
-}
-
-#[derive(Component)]
-struct Position {
-    x: i32,
-    y: i32,
-}
-
-#[derive(Component)]
-struct Renderable {
-    symbol: rltk::FontCharType,
-    fg: RGB,
-    bg: RGB,
-}
-
-#[derive(Component)]
-struct LeftMover {}
-
-#[derive(Component, Debug)]
-struct Player {}
-
-impl<'a> System<'a> for LeftMover {
-    type SystemData = (ReadStorage<'a, LeftMover>, WriteStorage<'a, Position>);
-
-    fn run(&mut self, (lefty, mut pos): Self::SystemData) {
-        for (_lefty, pos) in (&lefty, &mut pos).join() {
-            pos.x -= 1;
-
-            if pos.x < 0 {
-                pos.x = 79;
-            }
-        }
-    }
-}
-
-fn move_player(delta_x: i32, delta_y: i32, ecs: &mut World) {
-    let mut positions = ecs.write_storage::<Position>();
-    let mut players = ecs.write_storage::<Player>();
-
-    for (_player, pos) in (&mut players, &mut positions).join() {
-        pos.x = min(79, max(0, pos.x + delta_x));
-        pos.y = min(49, max(0, pos.y + delta_y));
-    }
-}
-
-fn player_handle_input(gs: &mut State, ctx: &mut Rltk) {
-    match ctx.key {
-        None => {}
-        Some(key) => match key {
-            VirtualKeyCode::W => move_player(0, -1, &mut gs.ecs),
-            VirtualKeyCode::A => move_player(-1, 0, &mut gs.ecs),
-            VirtualKeyCode::S => move_player(0, 1, &mut gs.ecs),
-            VirtualKeyCode::D => move_player(1, 0, &mut gs.ecs),
-            _ => {}
-        },
-    }
-}
+mod rectangle;
+pub use rectangle::Rectangle;
 
 fn main() -> rltk::BError {
     let context = RltkBuilder::simple80x50()
@@ -95,7 +26,6 @@ fn main() -> rltk::BError {
 
     game_state.ecs.register::<Position>();
     game_state.ecs.register::<Renderable>();
-    game_state.ecs.register::<LeftMover>();
     game_state.ecs.register::<Player>();
 
     game_state
@@ -109,20 +39,6 @@ fn main() -> rltk::BError {
         })
         .with(Player {})
         .build();
-
-    for idx in 0..10 {
-        game_state
-            .ecs
-            .create_entity()
-            .with(Position { x: idx * 7, y: 20 })
-            .with(Renderable {
-                symbol: rltk::to_cp437('☺'),
-                fg: RGB::named(rltk::RED),
-                bg: RGB::named(rltk::BLACK),
-            })
-            .with(LeftMover {})
-            .build();
-    }
 
     rltk::main_loop(context, game_state)
 }
