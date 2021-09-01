@@ -49,6 +49,17 @@ impl Rectangle {
         }
     }
 
+    /// Checks if the calling [Rectanlge] overlaps with
+    /// another [Rectangle]. Returns true if they overlap
+    /// and false otherwise.
+    /// 
+    /// # Arguments
+    /// * `other`: The rectangle for which the overlapping should be checked.
+    /// 
+    pub fn overlaps(&self, other: &Rectangle) -> bool {
+        self.left <= other.right && self.right >= other.left && self.top <= other.bottom && self.bottom >= other.top
+    }
+
     /// Returns the center coordinate 
     /// of the rectangle as a [Position].
     pub fn center(&self) -> Position {

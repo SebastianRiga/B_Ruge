@@ -25,7 +25,9 @@ pub fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let map = ecs.fetch::<Map>();
 
     for (_player, pos) in (&mut players, &mut positions).join() {
-        if map.get(pos.x + delta_x, pos.y + delta_y) != TileType::WALL {
+        let new_pos = map.get(pos.x + delta_x, pos.y + delta_y);
+
+        if new_pos != TileType::WALL {
             pos.x = min(79, max(0, pos.x + delta_x));
             pos.y = min(49, max(0, pos.y + delta_y));
         }
@@ -43,10 +45,25 @@ pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) {
     match ctx.key {
         None => {}
         Some(key) => match key {
-            VirtualKeyCode::W => player_move(0, -1, &mut game_state.ecs),
-            VirtualKeyCode::A => player_move(-1, 0, &mut game_state.ecs),
-            VirtualKeyCode::S => player_move(0, 1, &mut game_state.ecs),
-            VirtualKeyCode::D => player_move(1, 0, &mut game_state.ecs),
+            VirtualKeyCode::W |
+            VirtualKeyCode::Up |
+            VirtualKeyCode::Numpad8 |
+            VirtualKeyCode::K => player_move(0, -1, &mut game_state.ecs),
+
+            VirtualKeyCode::A |
+            VirtualKeyCode::Left |
+            VirtualKeyCode::Numpad4 |
+            VirtualKeyCode::H => player_move(-1, 0, &mut game_state.ecs),
+
+            VirtualKeyCode::S | 
+            VirtualKeyCode::Down |
+            VirtualKeyCode:: Numpad2 |
+            VirtualKeyCode::J => player_move(0, 1, &mut game_state.ecs),
+
+            VirtualKeyCode::D |
+            VirtualKeyCode::Right |
+            VirtualKeyCode::Numpad6 |
+            VirtualKeyCode::L => player_move(1, 0, &mut game_state.ecs),
             _ => {}
         },
     }
