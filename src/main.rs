@@ -42,10 +42,15 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Renderable>();
     game_state.ecs.register::<Player>();
 
+    
+    let map = Map::new_map_with_rooms(GAME_CONFIG.window_width, GAME_CONFIG.window_height);
+    let player_position = map.rooms[0].center();
+    game_state.ecs.insert(map);
+
     game_state
         .ecs
         .create_entity()
-        .with(Position { x: 40, y: 25 })
+        .with(Position { x: player_position.x, y: player_position.y })
         .with(Renderable {
             symbol: rltk::to_cp437('@'),
             fg: RGB::named(rltk::YELLOW),
@@ -53,9 +58,6 @@ fn main() -> rltk::BError {
         })
         .with(Player {})
         .build();
-
-    let map = Map::new(GAME_CONFIG.window_width, GAME_CONFIG.window_height);
-    game_state.ecs.insert(map);
 
     rltk::main_loop(context, game_state)
 }
