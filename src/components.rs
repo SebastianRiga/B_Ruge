@@ -1,6 +1,6 @@
 //! List of all components used in the game.
 
-use rltk::RGB;
+use rltk::{RGB, Point};
 use specs::prelude::*;
 use specs_derive::*;
 
@@ -13,6 +13,14 @@ pub struct Position {
 
     /// Y coordinate of the entity.
     pub y: i32,
+}
+
+impl Position {
+    /// Crates a new [Point] from the calling
+    /// coordinate.
+    pub fn to_point(&self) -> Point {
+        Point::new(self.x, self.y)
+    }
 }
 
 /// Component to describe the render
@@ -32,3 +40,17 @@ pub struct Renderable {
 /// Component for the player entity.
 #[derive(Component, Debug)]
 pub struct Player {}
+
+/// Component for the field of view implementation.
+#[derive(Component)]
+pub struct FOV {
+    /// Positions in the FOV.
+    pub content: Vec<rltk::Point>,
+
+    /// Range of the FOV.
+    pub range: i32,
+
+    /// Flag indicating if the 
+    /// [FOV] should be updated.
+    pub is_dirty: bool,
+}

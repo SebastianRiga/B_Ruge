@@ -23,6 +23,9 @@ pub use map::*;
 mod config;
 pub use config::*;
 
+mod systems;
+pub use systems::*;
+
 mod scribbles;
 pub use scribbles::*;
 
@@ -41,8 +44,8 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Position>();
     game_state.ecs.register::<Renderable>();
     game_state.ecs.register::<Player>();
+    game_state.ecs.register::<FOV>();
 
-    
     let map = Map::new_map_with_rooms(GAME_CONFIG.window_width, GAME_CONFIG.window_height);
     let player_position = map.rooms[0].center();
     game_state.ecs.insert(map);
@@ -50,13 +53,21 @@ fn main() -> rltk::BError {
     game_state
         .ecs
         .create_entity()
-        .with(Position { x: player_position.x, y: player_position.y })
+        .with(Position {
+            x: player_position.x,
+            y: player_position.y,
+        })
         .with(Renderable {
             symbol: rltk::to_cp437('@'),
             fg: RGB::named(rltk::YELLOW),
             bg: RGB::named(rltk::BLACK),
         })
         .with(Player {})
+        .with(FOV {
+            content: Vec::new(),
+            range: 8,
+            is_dirty: true
+        })
         .build();
 
     rltk::main_loop(context, game_state)

@@ -27,7 +27,7 @@ pub struct Config {
 
 /// Immutable global object containing
 /// the constant values of the game.
-/// 
+///
 /// Usable for size and space calculations.
 pub const GAME_CONFIG: Config = Config {
     name: "B_Ruge",
