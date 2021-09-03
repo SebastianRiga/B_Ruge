@@ -1,10 +1,10 @@
 //! Collection of functions for the player.
 
-use rltk::{Rltk, VirtualKeyCode};
+use rltk::{Rltk, VirtualKeyCode, Point};
 use specs::prelude::*;
 use std::cmp::{max, min};
 
-use super::{Map, Player, Position, State, TileType, FOV};
+use super::{Map, Player, Position, State, TileType, FOV, ProcessingState};
 
 /// Moves the [Player] entity through its stored [Position]
 /// in the `ecs` by adding the `delta_x` and `delta_y` to it.
@@ -24,6 +24,7 @@ pub fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
     let mut fovs = ecs.write_storage::<FOV>();
     let mut players = ecs.write_storage::<Player>();
     let mut positions = ecs.write_storage::<Position>();
+    let mut player_ecs_position = ecs.write_resource::<Point>();
 
     for (_, position, fov) in (&mut players, &mut positions, &mut fovs).join() {
         let new_pos = map.get_tile(position.x + delta_x, position.y + delta_y);
@@ -31,6 +32,9 @@ pub fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
         if new_pos != TileType::WALL {
             position.x = min(79, max(0, position.x + delta_x));
             position.y = min(49, max(0, position.y + delta_y));
+
+            player_ecs_position.x = position.x;
+            player_ecs_position.y = position.y;
 
             fov.is_dirty = true;
         }
@@ -44,9 +48,9 @@ pub fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
 /// * `game_state`: Reference to the current state of the game for `ecs` access.
 /// * `ctx`: Reference to the context of the `ecs` to read the key input.
 ///
-pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) {
+pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> ProcessingState {
     match ctx.key {
-        None => {}
+        None => { return ProcessingState::IDLE }
         Some(key) => match key {
             VirtualKeyCode::W
             | VirtualKeyCode::Up
@@ -67,7 +71,9 @@ pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) {
             | VirtualKeyCode::Right
             | VirtualKeyCode::Numpad6
             | VirtualKeyCode::L => player_move(1, 0, &mut game_state.ecs),
-            _ => {}
+
+            _ => { return ProcessingState::IDLE }
         },
     }
+    ProcessingState::RUNNING
 }

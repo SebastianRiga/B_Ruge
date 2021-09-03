@@ -1,11 +1,10 @@
 //! Game map implementation.
 
-use rltk::{RandomNumberGenerator, Rltk, RGB, Algorithm2D, Point, BaseMap};
-use specs::prelude::*;
+use rltk::{Algorithm2D, BaseMap, Point, RandomNumberGenerator, Rltk};
 
 use std::cmp::{max, min};
 
-use super::{Rectangle, GAME_CONFIG};
+use super::{Rectangle, TileFactory, GAME_CONFIG};
 
 /// Enum describing all available tile
 /// types of the game.
@@ -43,7 +42,7 @@ pub struct Map {
 
     /// Vector containing all tiles
     /// which are currently in the fov.
-    pub tiles_in_fov: Vec<bool>
+    pub tiles_in_fov: Vec<bool>,
 }
 
 impl Map {
@@ -215,7 +214,7 @@ impl Map {
     ///
     /// See `map_idx´ for the actual access implementation.
     ///
-    pub fn set_tile(&mut self, x: i32, y: i32, tile: TileType) -> &mut Self {
+    pub fn set_tile(&mut self, x: i32, y: i32, tile: TileType) -> &Self {
         self.tiles[map_idx(x, y, self.width)] = tile;
         self
     }
@@ -230,7 +229,7 @@ impl Map {
     ///
     /// See `map_idx` for the actual access implementation.
     ///
-    pub fn get_explored_tile(&self, x: i32, y: i32) -> bool {
+    pub fn is_tile_explored(&self, x: i32, y: i32) -> bool {
         self.explored_tiles[map_idx(x, y, self.width)]
     }
 
@@ -244,7 +243,7 @@ impl Map {
     ///
     /// See `map_idx´ for the actual access implementation.
     ///
-    pub fn set_explored_tile(&mut self, x: i32, y: i32, explored: bool) -> &mut Self {
+    pub fn set_explored_tile(&mut self, x: i32, y: i32, explored: bool) -> &Self {
         self.explored_tiles[map_idx(x, y, self.width)] = explored;
         self
     }
@@ -259,7 +258,7 @@ impl Map {
     ///
     /// See `map_idx` for the actual access implementation.
     ///
-    pub fn get_tile_in_fov(&self, x: i32, y: i32) -> bool {
+    pub fn is_tile_in_fov(&self, x: i32, y: i32) -> bool {
         self.tiles_in_fov[map_idx(x, y, self.width)]
     }
 
@@ -273,7 +272,7 @@ impl Map {
     ///
     /// See `map_idx´ for the actual access implementation.
     ///
-    pub fn set_tile_in_fov(&mut self, x: i32, y: i32, is_in_fov: bool) -> &mut Self {
+    pub fn set_tile_in_fov(&mut self, x: i32, y: i32, is_in_fov: bool) -> &Self {
         self.tiles_in_fov[map_idx(x, y, self.width)] = is_in_fov;
         self
     }
@@ -313,6 +312,44 @@ impl Map {
             idx, self.width, self.height
         );
         Err(err)
+    }
+
+    /// Runs the passed function `block` for each room in the map.
+    ///
+    /// # Arguments
+    /// * `block`: The function to exectue for each room.
+    ///
+    pub fn apply_to_rooms<F>(&self, mut block: F)
+    where
+        F: FnMut(&Rectangle),
+    {
+        for room in self.rooms.iter().skip(1) {
+            block(&room);
+        }
+    }
+
+    /// Runs the passed function `block` for each room in the map
+    /// that is not skipped.
+    ///
+    /// # Arguments
+    /// * `skip`: How many rooms the iteration should skip.
+    /// * `block`: The function to exectue for each room.
+    ///
+    pub fn apply_to_rooms_skip<F>(&self, skip: usize, mut block: F)
+    where
+        F: FnMut(usize, &Rectangle),
+    {
+        for (idx, room) in self.rooms.iter().skip(skip).enumerate() {
+            block(idx, &room);
+        }
+    }
+
+    /// Resets all fov flags back to false.
+    pub fn reset_tiles_in_fov(&mut self) -> &Self {
+        for tile in self.tiles_in_fov.iter_mut() {
+            *tile = false;
+        }
+        self
     }
 
     /// Draws the passed room on the map by changing the
@@ -358,8 +395,7 @@ impl Map {
     /// # Arguments
     /// * `ctx`: The [Rltk] context to draw the map with.
     ///
-    pub fn draw(&self, _ecs: &World, ctx: &mut Rltk) -> &Self {
-
+    pub fn draw(&self, ctx: &mut Rltk) -> &Self {
         // Get starting x and y coordinates.i64
         let (mut x, mut y) = (0, 0);
 
@@ -449,31 +485,34 @@ impl Map {
         self
     }
 
-    // Match the type of tile and draw it according to the position.
+    /// Draws the passed [TileType] at the given `x` and `y` coordinate.
+    /// 
+    /// # Arguments
+    /// * `x`: The `x` position of the tile.
+    /// * `y`: The `y` position of the tile.
+    /// * `tile`: The [TileType] which should be set at the passed position.
+    /// * `ctx`: The [Rltk] context, in which the `tile` should be drawn.
+    /// 
+    /// # Notes
+    /// 
+    /// The tiles are drawn depending on two factors.
+    /// * If the thile is is in the fov of the player, it is drawn with full color.
+    /// * If the tile is outside of the fov it is drawn in its grayscale counterpart.
+    /// 
     fn draw_tile(&self, x: i32, y: i32, tile: &TileType, ctx: &mut Rltk) -> &Self {
-        let symbol;
-        let mut foreground_color;
-
-        match tile {
-            TileType::FLOOR => {
-                symbol = rltk::to_cp437('.');
-                foreground_color = RGB::from_f32(0., 0.5, 0.5);
-            }
-            TileType::WALL => {
-                symbol =  rltk::to_cp437('#');
-                foreground_color =  RGB::from_f32(0., 1., 0.);
-            }
-        }
+        let mut tile = match tile {
+            TileType::FLOOR => TileFactory::new_floor(),
+            TileType::WALL => TileFactory::new_wall(),
+        };
 
         if !self.tiles_in_fov[map_idx(x, y, self.width)] {
-            foreground_color = foreground_color.to_greyscale();
+            tile.fg = tile.fg.to_greyscale();
         }
 
-        ctx.set(x, y, foreground_color, RGB::from_f32(0., 0., 0.), symbol);
+        ctx.set(x, y, tile.fg, tile.bg, tile.symbol);
 
         self
     }
-    
 }
 
 /// Maps the passed `x` and `y` coordinates to a
@@ -489,12 +528,15 @@ fn map_idx(x: i32, y: i32, max_width: i32) -> usize {
     (y as usize * max_width as usize) + x as usize
 }
 
+/// Impl to provide rtlk with the dimension of the map
 impl Algorithm2D for Map {
     fn dimensions(&self) -> Point {
         Point::new(self.width, self.height)
     }
 }
 
+/// Impl to provide rltk with the information
+/// which tiles are impassable (opaque).
 impl BaseMap for Map {
     fn is_opaque(&self, idx: usize) -> bool {
         self.tiles[idx] == TileType::WALL

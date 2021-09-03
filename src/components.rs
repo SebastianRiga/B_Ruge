@@ -1,6 +1,6 @@
 //! List of all components used in the game.
 
-use rltk::{RGB, Point};
+use rltk::{Point, RGB};
 use specs::prelude::*;
 use specs_derive::*;
 
@@ -50,7 +50,18 @@ pub struct FOV {
     /// Range of the FOV.
     pub range: i32,
 
-    /// Flag indicating if the 
+    /// Flag indicating if the
     /// [FOV] should be updated.
     pub is_dirty: bool,
+}
+
+/// Component for the monsters.
+#[derive(Component, Debug)]
+pub struct Monster {}
+
+/// Component to name entities
+#[derive(Component, Debug)]
+pub struct Name {
+    /// The name of the entity
+    pub name: String
 }
