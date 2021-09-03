@@ -1,6 +1,6 @@
 [package]
 name = "b_ruge"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2018"
 description = "Shadowrun inspired dungeon crawler written in Rust"
 license = "MIT"
