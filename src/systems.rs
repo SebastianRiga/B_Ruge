@@ -1,3 +1,5 @@
+//! Module containing all systems of the game
+
 use rltk::{field_of_view, console, Point};
 use specs::prelude::*;
 
