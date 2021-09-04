@@ -3,7 +3,7 @@
 use rltk::{GameState, Rltk};
 use specs::prelude::*;
 
-use super::{player_handle_input, FOVSystem, Map, Position, Renderable, MonsterAI};
+use super::{player_handle_input, FOVSystem, Map, MapSystem, MonsterAI, Position, Renderable};
 
 /// Struct describing the current state of the game
 /// and providing access to the underlying `ECS`
@@ -21,10 +21,13 @@ impl State {
     /// Exectue the systems of the game.
     fn run_systems(&mut self) {
         let mut fov_system = FOVSystem {};
-        let mut monster_ai = MonsterAI {};
-
         fov_system.run_now(&self.ecs);
+
+        let mut monster_ai = MonsterAI {};
         monster_ai.run_now(&self.ecs);
+
+        let mut map_system = MapSystem {};
+        map_system.run_now(&self.ecs);
 
         self.ecs.maintain();
     }
@@ -47,7 +50,7 @@ impl GameState for State {
             self.run_systems();
             self.processing_state = ProcessingState::IDLE;
         } else {
-                // Read player input to get next processing step
+            // Read player input to get next processing step
             self.processing_state = player_handle_input(self, ctx);
         }
 
@@ -81,9 +84,9 @@ pub enum ProcessingState {
     /// The game is ideling and waiting for input.
     /// No actions are performed during this state.
     IDLE,
-    
+
     /// The game is actively executing systems and
     /// functions, e.g. the player has pressed a key
     /// or otherwise triggered an event.
-    RUNNING
+    RUNNING,
 }

@@ -1,9 +1,9 @@
 //! Module containing all systems of the game
 
-use rltk::{field_of_view, console, Point};
+use rltk::{a_star_search, console, field_of_view, Point};
 use specs::prelude::*;
 
-use super::{Map, Player, Position, FOV, Monster, Name};
+use super::{pythagoras_distance, Collision, Map, Monster, Name, Player, Position, FOV};
 
 /// System that handles the field of view
 /// processing. See the implementation below
@@ -28,7 +28,7 @@ impl<'a> System<'a> for FOVSystem {
             // If the [FOV] is dirty, calculate new
             if fov.is_dirty {
                 // Invalidate [FOV] flag
-                fov.is_dirty = false;
+                fov.mark_as_clean();
 
                 // Recalculate the [FOV]
                 fov.content.clear();
@@ -57,25 +57,71 @@ impl<'a> System<'a> for FOVSystem {
 /// Base AI system for all monsters.
 pub struct MonsterAI {}
 
-impl <'a>System<'a> for MonsterAI {
+impl<'a> System<'a> for MonsterAI {
     type SystemData = (
-        ReadStorage<'a, FOV>,
+        WriteExpect<'a, Map>,
+        WriteStorage<'a, FOV>,
         ReadExpect<'a, Point>,
         ReadStorage<'a, Monster>,
-        ReadStorage<'a, Name>
+        ReadStorage<'a, Name>,
+        WriteStorage<'a, Position>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
         // Get system data
-        let (fovs, player_position, monsters, names) = data;
+        let (mut map, mut fovs, player_position, monsters, names, mut positions) = data;
 
         // Iterate through all monsters that have an fov
-        for (fov, _monster, name) in (&fovs, &monsters, &names).join() {
+        for (fov, _monster, name, position) in (&mut fovs, &monsters, &names, &mut positions).join()
+        {
             // If the fov of the monster contains the player
             // its AI is executed.
             if fov.content.contains(&*player_position) {
-                console::log(format!("{} growls aggressively!", name.name));
+                let distance_to_player =
+                    pythagoras_distance(&position.to_point(), &*player_position);
+
+                if distance_to_player < 1.5 {
+                    // TODO: Add attack here
+                    console::log(&format!("{} growls aggressively at!", name.name));
+                    return;
+                }
+
+                let monster_idx = map.coordinates_to_idx(position.x, position.y);
+                let player_idx = map.coordinates_to_idx(player_position.x, player_position.y);
+
+                // Calculate path for the monster to chase the player
+                let path = a_star_search(monster_idx, player_idx, &mut *map);
+
+                // If a path could successfully be calculated, update the monsters position
+                // according to the new coordinates from the path.
+                if path.success && path.steps.len() > 1 {
+                    let next_position = map.idx_to_coordinates(path.steps[1]);
+                    position.update_with_tuple(next_position);
+                    fov.mark_as_dirty();
+                }
             }
+        }
+    }
+}
+
+/// System updating the properties and tile attributes
+/// of the game [Map].
+pub struct MapSystem {}
+
+impl<'a> System<'a> for MapSystem {
+    type SystemData = (
+        WriteExpect<'a, Map>,
+        ReadStorage<'a, Position>,
+        ReadStorage<'a, Collision>,
+    );
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (mut map, positions, collisions) = data;
+
+        map.refresh_blocked_tiles();
+
+        for (position, _collision) in (&positions, &collisions).join() {
+            map.set_tile_is_blocked(position.x, position.y, true);
         }
     }
 }
