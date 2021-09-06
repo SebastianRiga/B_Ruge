@@ -3,6 +3,7 @@
 use std::cmp::{max, min};
 
 use rltk::{console, Algorithm2D, BaseMap, Point, RandomNumberGenerator, Rltk, SmallVec};
+use specs::prelude::Entity;
 
 use super::{pythagoras_distance, Rectangle, TileFactory, GAME_CONFIG};
 
@@ -49,6 +50,11 @@ pub struct Map {
     /// indicates whether or not the tile
     /// at the position is walkable or not.
     pub blocked_tiles: Vec<bool>,
+
+    /// Vector over all tiles containing
+    /// a list of entities which are on a
+    /// given tile.
+    pub tile_contents: Vec<Vec<Entity>>,
 }
 
 impl Map {
@@ -74,6 +80,7 @@ impl Map {
             explored_tiles: vec![false; width as usize * height as usize],
             tiles_in_fov: vec![false; width as usize * height as usize],
             blocked_tiles: vec![false; width as usize * height as usize],
+            tile_contents: vec![Vec::new(); width as usize * height as usize],
         };
 
         // Create outer vertical walls
@@ -129,6 +136,7 @@ impl Map {
             explored_tiles: vec![false; width as usize * height as usize],
             tiles_in_fov: vec![false; width as usize * height as usize],
             blocked_tiles: vec![false; width as usize * height as usize],
+            tile_contents: vec![Vec::new(); width as usize * height as usize],
         };
 
         // Create a random number generator
@@ -296,25 +304,25 @@ impl Map {
         self
     }
 
-    /// Returns true if the tile at the passed `x` and `y` position 
+    /// Returns true if the tile at the passed `x` and `y` position
     /// is blocked, false otherwise.
-    /// 
+    ///
     /// # Arguments
     /// * `x`: X position of the tile to check.
     /// * `y`: Y position of the tile to check.
-    /// 
+    ///
     pub fn is_tile_blocked(&self, x: i32, y: i32) -> bool {
         self.blocked_tiles[self.coordinates_to_idx(x, y)]
     }
 
     /// Sets the the tile at the given `x` and `y` to the value of `blocked` to
     /// indicate whether or not the tile can be walked into or not.
-    /// 
+    ///
     /// # Arguments
     /// * `x`: X position of the tile to modify.
     /// * `y`: Y position of the tile to modify.
     /// * `blocked`: Flag that indicates whether or not the tile is blocked.
-    /// 
+    ///
     pub fn set_tile_is_blocked(&mut self, x: i32, y: i32, blocked: bool) -> &Self {
         let idx = self.coordinates_to_idx(x, y);
         self.blocked_tiles[idx] = blocked;
@@ -337,6 +345,55 @@ impl Map {
                 false
             }
         }
+    }
+
+    /// Returns the list of [Entitie]s which are currently on the tile
+    /// at the given `x` and `y` position.
+    ///
+    /// # Arguments
+    /// * `x`: X position of the tile whos content should be returned.
+    /// * `y`: Y position of the tile whos content should be returned.
+    ///
+    pub fn tile_contents_get(&self, x: i32, y: i32) -> &Vec<Entity> {
+        &self.tile_contents[self.coordinates_to_idx(x, y)]
+    }
+
+    /// Adds the passed `entity` to the contents of the tile at given
+    /// `x` and `y` position.
+    ///
+    /// # Arguments
+    /// * `x`: The x position of the tile.
+    /// * `y`: The y position of the tile.
+    /// * `entity`: The entity to add to the tile at the given `x` and `y` position.
+    ///
+    pub fn tile_contents_push(&mut self, x: i32, y: i32, entity: Entity) -> &Self {
+        let idx = self.coordinates_to_idx(x, y);
+        self.tile_contents[idx].push(entity);
+        self
+    }
+
+    /// Removes the `entity` from the contents of the tile at the supplied
+    /// `x` and `y` position.
+    ///
+    /// # Arguments
+    /// * `x`: The x position of the tile from whos contents the `entity` should be removed.
+    /// * `y`: The y position of the tile from whos content the `entity` should be removed.
+    /// * `entity`: The entity to remove from the contents of the tile at the given `x`
+    /// and `y` position.
+    ///
+    pub fn tile_contents_remove(&mut self, x: i32, y: i32, entity: Entity) -> &Self {
+        let idx = self.coordinates_to_idx(x, y);
+        self.tile_contents[idx].retain(|element| *element != entity);
+        self
+    }
+
+    /// Clears the contents of all tiles on the map.
+    pub fn clear_tile_contents(&mut self) -> &Self {
+        for contents in self.tile_contents.iter_mut() {
+            contents.clear();
+        }
+
+        self
     }
 
     /// Returns the maximum x coordinate available
@@ -371,7 +428,10 @@ impl Map {
     /// * `idx`: The index which should be mapped back to `x` and `y` coordinates.
     ///
     pub fn idx_to_coordinates(&self, idx: usize) -> (i32, i32) {
-        (idx as i32 % self.width, idx as i32 / self.width)
+        let x = idx as i32 % self.width;
+        let y = idx as i32 / self.width;
+
+        (x, y)
     }
 
     /// Checks if the given coordinate is within the bounds of the
@@ -616,16 +676,16 @@ impl BaseMap for Map {
 
         // Check tiles in cardinal directions
         if self.is_tile_walkable(x - 1, y) {
-            walkable_tiles.push((idx - 1, 1.0))
+            walkable_tiles.push((idx - 1, 1.0));
         }
         if self.is_tile_walkable(x + 1, y) {
-            walkable_tiles.push((idx + 1, 1.0))
+            walkable_tiles.push((idx + 1, 1.0));
         }
         if self.is_tile_walkable(x, y - 1) {
-            walkable_tiles.push((idx - width, 1.0))
+            walkable_tiles.push((idx - width, 1.0));
         }
         if self.is_tile_walkable(x, y + 1) {
-            walkable_tiles.push((idx + width, 1.0))
+            walkable_tiles.push((idx + width, 1.0));
         }
 
         // Check tiles in diagonal directions
@@ -634,23 +694,24 @@ impl BaseMap for Map {
         }
 
         if self.is_tile_walkable(x + 1, y - 1) {
-            walkable_tiles.push(((idx - width) + 1, 1.45))
+            walkable_tiles.push(((idx - width) + 1, 1.45));
         }
 
         if self.is_tile_walkable(x - 1, y + 1) {
-            walkable_tiles.push((((idx + width) - 1), 1.45))
+            walkable_tiles.push(((idx + width) - 1, 1.45));
         }
 
         if self.is_tile_walkable(x + 1, y + 1) {
-            walkable_tiles.push((((idx + width) + 1), 1.45))
+            walkable_tiles.push(((idx + width) + 1, 1.45));
         }
 
         walkable_tiles
     }
 
     fn get_pathing_distance(&self, idx1: usize, idx2: usize) -> f32 {
-        let (x1, y1) = self.idx_to_coordinates(idx1);
-        let (x2, y2) = self.idx_to_coordinates(idx2);
+        let width = self.width as usize;
+        let (x1, y1) = (idx1 % width, idx1 / width);
+        let (x2, y2) = (idx2 % width, idx2 / width);
 
         let point1 = Point::new(x1, y1);
         let point2 = Point::new(x2, y2);

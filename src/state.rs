@@ -3,7 +3,10 @@
 use rltk::{GameState, Rltk};
 use specs::prelude::*;
 
-use super::{player_handle_input, FOVSystem, Map, MapSystem, MonsterAI, Position, Renderable};
+use super::{
+    player_handle_input, DamageSystem, FOVSystem, Map, MapDexSystem, MeleeCombatSystem, MonsterAI,
+    Position, Renderable,
+};
 
 /// Struct describing the current state of the game
 /// and providing access to the underlying `ECS`
@@ -12,9 +15,6 @@ pub struct State {
     /// Provides access to resource container [World],
     /// that makes up the `ECS`.
     pub ecs: World,
-
-    /// Controls the games execution state.
-    pub processing_state: ProcessingState,
 }
 
 impl State {
@@ -26,8 +26,14 @@ impl State {
         let mut monster_ai = MonsterAI {};
         monster_ai.run_now(&self.ecs);
 
-        let mut map_system = MapSystem {};
-        map_system.run_now(&self.ecs);
+        let mut map_dex = MapDexSystem {};
+        map_dex.run_now(&self.ecs);
+
+        let mut melee_combat_system = MeleeCombatSystem {};
+        melee_combat_system.run_now(&self.ecs);
+
+        let mut damage_system = DamageSystem {};
+        damage_system.run_now(&self.ecs);
 
         self.ecs.maintain();
     }
@@ -45,32 +51,54 @@ impl GameState for State {
         // Clear screen
         ctx.cls();
 
-        // Execute the systems of the state.
-        if self.processing_state == ProcessingState::RUNNING {
-            self.run_systems();
-            self.processing_state = ProcessingState::IDLE;
-        } else {
-            // Read player input to get next processing step
-            self.processing_state = player_handle_input(self, ctx);
+        let mut next_processing_state: ProcessingState;
+        {
+            let current_processing_state = *self.ecs.fetch::<ProcessingState>();
+            next_processing_state = current_processing_state;
         }
+
+        match next_processing_state {
+            ProcessingState::Internal => {
+                self.run_systems();
+                next_processing_state = ProcessingState::WaitingForInput;
+            }
+            ProcessingState::WaitingForInput => {
+                next_processing_state = player_handle_input(self, ctx);
+            }
+            ProcessingState::PlayerTurn => {
+                self.run_systems();
+                next_processing_state = ProcessingState::MonsterTurn;
+            }
+            ProcessingState::MonsterTurn => {
+                self.run_systems();
+                next_processing_state = ProcessingState::Internal;
+            }
+        }
+
+        {
+            let mut run_writer = self.ecs.write_resource::<ProcessingState>();
+            *run_writer = next_processing_state;
+        }
+
+        DamageSystem::clean_up(&mut self.ecs);
 
         // Create the map
         let map = self.ecs.fetch::<Map>();
         map.draw(ctx);
 
-        // Get all entities with [Postion] and [Renderable]
+        // Get all entities with [Position] and [Renderable]
         // attributes and render them on the screen.
         let positions = self.ecs.read_storage::<Position>();
-        let renderables = self.ecs.read_storage::<Renderable>();
+        let renderers = self.ecs.read_storage::<Renderable>();
 
-        for (position, renderables) in (&positions, &renderables).join() {
+        for (position, renderable) in (&positions, &renderers).join() {
             if map.is_tile_in_fov(position.x, position.y) {
                 ctx.set(
                     position.x,
                     position.y,
-                    renderables.fg,
-                    renderables.bg,
-                    renderables.symbol,
+                    renderable.fg,
+                    renderable.bg,
+                    renderable.symbol,
                 )
             }
         }
@@ -81,12 +109,20 @@ impl GameState for State {
 /// the game can be in during execution.
 #[derive(PartialEq, Copy, Clone)]
 pub enum ProcessingState {
-    /// The game is ideling and waiting for input.
-    /// No actions are performed during this state.
-    IDLE,
+    /// Executes all internal systems
+    /// and functions before the game
+    /// passes control to the player.
+    Internal,
 
-    /// The game is actively executing systems and
-    /// functions, e.g. the player has pressed a key
-    /// or otherwise triggered an event.
-    RUNNING,
+    /// The game is waiting for player
+    /// input.
+    WaitingForInput,
+
+    /// Executes the action
+    /// input by the player.
+    PlayerTurn,
+
+    /// Executes the monsters
+    /// actions.
+    MonsterTurn,
 }

@@ -119,13 +119,57 @@ pub struct Collision {}
 pub struct Statistics {
     /// Maximum hp of the entity.
     pub hp_max: i32,
-    
+
     /// Current hp of the entity.
     pub hp: i32,
-    
+
     /// Attack power of the entity.
     pub power: i32,
-    
+
     /// Defense capabilities of the entity.
     pub defense: i32,
+}
+
+/// Component designating an entity which
+/// attacks in melee range.
+#[derive(Component, Debug, Clone)]
+pub struct MeleeAttack {
+    /// The target entity of the attack.
+    pub target: Entity,
+}
+
+/// Component keeping track of
+/// the damage an entity receives
+/// in a turn.
+#[derive(Component, Debug)]
+pub struct DamageCounter {
+    /// The amount of damage the entity has taken
+    /// this turn as a vector.
+    pub damage_values: Vec<i32>,
+}
+
+impl DamageCounter {
+    /// Adds the passed damage `amount` to the damage values of the `target` and writes them
+    /// into the associated `ecs` `store`.
+    ///
+    /// # Arguments
+    /// * `store`: The store in which the [DamageTaken] component should be saved.
+    /// * `target`: The [Entity] taking the damage.
+    /// * `amount`: The number of damage the [Entity] has taken.
+    ///
+    pub fn add_damage_taken(store: &mut WriteStorage<DamageCounter>, target: Entity, amount: i32) {
+        if let Some(damage_counter) = store.get_mut(target) {
+            damage_counter.damage_values.push(amount)
+        } else {
+            let damage_counter = DamageCounter {
+                damage_values: vec![amount],
+            };
+
+            store.insert(target, damage_counter).expect(&format!(
+                "Damage amount {} couldn't be stored in the ecs for entity with id {}",
+                amount,
+                target.id()
+            ));
+        }
+    }
 }

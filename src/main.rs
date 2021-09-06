@@ -1,8 +1,8 @@
 #![warn(missing_docs)]
 
-//! Main entry point of the game.
+//! D&D and NetHack inspired dungeon crawler written in rust.
 
-use rltk::{console, RltkBuilder};
+use rltk::{console, RltkBuilder, RGB};
 use specs::prelude::*;
 
 mod state;
@@ -58,19 +58,18 @@ fn main() -> rltk::BError {
     );
 
     // Create a new terminal
-    let mut context = RltkBuilder::simple80x50()
+    let mut terminal = RltkBuilder::simple(GAME_CONFIG.window_width, GAME_CONFIG.window_height)?
         .with_title(GAME_CONFIG.name)
+        .with_fullscreen(false)
         .build()?;
-
-    // Create the initial game state
-    let mut game_state = State {
-        ecs: World::new(),
-        processing_state: ProcessingState::RUNNING,
-    };
 
     // Enable scan lines for the nostalgic feel.
     // TODO: Need to find a possibility to insert custom shaders.
-    context.with_post_scanlines(true);
+    terminal.with_post_scanlines(true);
+    terminal.screen_burn_color(RGB::named(rltk::BLACK));
+
+    // Create the initial game state
+    let mut game_state = State { ecs: World::new() };
 
     // Register components
     game_state.ecs.register::<FOV>();
@@ -81,6 +80,8 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<Collision>();
     game_state.ecs.register::<Renderable>();
     game_state.ecs.register::<Statistics>();
+    game_state.ecs.register::<MeleeAttack>();
+    game_state.ecs.register::<DamageCounter>();
 
     // Create the game map
     let map = Map::new_map_with_rooms(GAME_CONFIG.window_width, GAME_CONFIG.window_height);
@@ -111,12 +112,16 @@ fn main() -> rltk::BError {
     let player_position = map.rooms[0].center();
 
     // Create the player
-    EntityFactory::new_player(&player_position, &mut game_state.ecs);
+    let player_entity = EntityFactory::new_player(&player_position, &mut game_state.ecs);
 
     // Insert the game resources into the ecs
     game_state.ecs.insert(map);
+    game_state.ecs.insert(player_entity);
     game_state.ecs.insert(player_position.to_point());
 
+    // Set the initial processing state of the game
+    game_state.ecs.insert(ProcessingState::Internal);
+
     // Start the main loop
-    rltk::main_loop(context, game_state)
+    rltk::main_loop(terminal, game_state)
 }
