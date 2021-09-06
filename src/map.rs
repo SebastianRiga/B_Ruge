@@ -1,10 +1,11 @@
 //! Game map implementation.
 
-use rltk::{Algorithm2D, BaseMap, Point, RandomNumberGenerator, Rltk};
-
 use std::cmp::{max, min};
 
-use super::{Rectangle, TileFactory, GAME_CONFIG};
+use rltk::{console, Algorithm2D, BaseMap, Point, RandomNumberGenerator, Rltk, SmallVec};
+use specs::prelude::Entity;
+
+use super::{pythagoras_distance, Rectangle, TileFactory, GAME_CONFIG};
 
 /// Enum describing all available tile
 /// types of the game.
@@ -43,6 +44,17 @@ pub struct Map {
     /// Vector containing all tiles
     /// which are currently in the fov.
     pub tiles_in_fov: Vec<bool>,
+
+    /// Vector containing a bool flag
+    /// for each tile of the map, which
+    /// indicates whether or not the tile
+    /// at the position is walkable or not.
+    pub blocked_tiles: Vec<bool>,
+
+    /// Vector over all tiles containing
+    /// a list of entities which are on a
+    /// given tile.
+    pub tile_contents: Vec<Vec<Entity>>,
 }
 
 impl Map {
@@ -61,12 +73,14 @@ impl Map {
     ///
     pub fn new_map_test(width: i32, height: i32) -> Self {
         let mut map = Map {
-            width: width,
-            height: height,
+            width,
+            height,
             tiles: vec![TileType::FLOOR; width as usize * height as usize],
             rooms: Vec::new(),
             explored_tiles: vec![false; width as usize * height as usize],
             tiles_in_fov: vec![false; width as usize * height as usize],
+            blocked_tiles: vec![false; width as usize * height as usize],
+            tile_contents: vec![Vec::new(); width as usize * height as usize],
         };
 
         // Create outer vertical walls
@@ -100,7 +114,7 @@ impl Map {
     /// Creates a new map with the given `width`
     /// and `height`.
     ///
-    /// Adds rooms of random widht and height
+    /// Adds rooms of random width and height
     /// at random positions to the map. Rooms
     /// are connected through vertical and
     /// horizontal intersections.
@@ -115,12 +129,14 @@ impl Map {
     pub fn new_map_with_rooms(width: i32, height: i32) -> Self {
         // Create the base map struct
         let mut map = Map {
-            width: width,
-            height: height,
+            width,
+            height,
             tiles: vec![TileType::WALL; width as usize * height as usize],
             rooms: Vec::new(),
             explored_tiles: vec![false; width as usize * height as usize],
             tiles_in_fov: vec![false; width as usize * height as usize],
+            blocked_tiles: vec![false; width as usize * height as usize],
+            tile_contents: vec![Vec::new(); width as usize * height as usize],
         };
 
         // Create a random number generator
@@ -201,7 +217,7 @@ impl Map {
     /// See `map_idx` for the actual access implementation.
     ///
     pub fn get_tile(&self, x: i32, y: i32) -> TileType {
-        self.tiles[map_idx(x, y, self.width)]
+        self.tiles[self.coordinates_to_idx(x, y)]
     }
 
     /// Sets the [TileType] of the tile at the given
@@ -215,7 +231,8 @@ impl Map {
     /// See `map_idx´ for the actual access implementation.
     ///
     pub fn set_tile(&mut self, x: i32, y: i32, tile: TileType) -> &Self {
-        self.tiles[map_idx(x, y, self.width)] = tile;
+        let idx = self.coordinates_to_idx(x, y);
+        self.tiles[idx] = tile;
         self
     }
 
@@ -230,10 +247,10 @@ impl Map {
     /// See `map_idx` for the actual access implementation.
     ///
     pub fn is_tile_explored(&self, x: i32, y: i32) -> bool {
-        self.explored_tiles[map_idx(x, y, self.width)]
+        self.explored_tiles[self.coordinates_to_idx(x, y)]
     }
 
-    /// Sets the flag that indicates wether or not
+    /// Sets the flag that indicates whether or not
     /// the tile has been explored
     ///
     /// # Arguments
@@ -244,7 +261,8 @@ impl Map {
     /// See `map_idx´ for the actual access implementation.
     ///
     pub fn set_explored_tile(&mut self, x: i32, y: i32, explored: bool) -> &Self {
-        self.explored_tiles[map_idx(x, y, self.width)] = explored;
+        let idx = self.coordinates_to_idx(x, y);
+        self.explored_tiles[idx] = explored;
         self
     }
 
@@ -259,10 +277,10 @@ impl Map {
     /// See `map_idx` for the actual access implementation.
     ///
     pub fn is_tile_in_fov(&self, x: i32, y: i32) -> bool {
-        self.tiles_in_fov[map_idx(x, y, self.width)]
+        self.tiles_in_fov[self.coordinates_to_idx(x, y)]
     }
 
-    /// Sets the flag that indicates wether or not
+    /// Sets the flag that indicates whether or not
     /// the tile is in the fov.
     ///
     /// # Arguments
@@ -273,7 +291,108 @@ impl Map {
     /// See `map_idx´ for the actual access implementation.
     ///
     pub fn set_tile_in_fov(&mut self, x: i32, y: i32, is_in_fov: bool) -> &Self {
-        self.tiles_in_fov[map_idx(x, y, self.width)] = is_in_fov;
+        let idx = self.coordinates_to_idx(x, y);
+        self.tiles_in_fov[idx] = is_in_fov;
+        self
+    }
+
+    /// Resets all fov flags back to false.
+    pub fn reset_tiles_in_fov(&mut self) -> &Self {
+        for tile in self.tiles_in_fov.iter_mut() {
+            *tile = false;
+        }
+        self
+    }
+
+    /// Returns true if the tile at the passed `x` and `y` position
+    /// is blocked, false otherwise.
+    ///
+    /// # Arguments
+    /// * `x`: X position of the tile to check.
+    /// * `y`: Y position of the tile to check.
+    ///
+    pub fn is_tile_blocked(&self, x: i32, y: i32) -> bool {
+        self.blocked_tiles[self.coordinates_to_idx(x, y)]
+    }
+
+    /// Sets the the tile at the given `x` and `y` to the value of `blocked` to
+    /// indicate whether or not the tile can be walked into or not.
+    ///
+    /// # Arguments
+    /// * `x`: X position of the tile to modify.
+    /// * `y`: Y position of the tile to modify.
+    /// * `blocked`: Flag that indicates whether or not the tile is blocked.
+    ///
+    pub fn set_tile_is_blocked(&mut self, x: i32, y: i32, blocked: bool) -> &Self {
+        let idx = self.coordinates_to_idx(x, y);
+        self.blocked_tiles[idx] = blocked;
+        self
+    }
+
+    /// Returns `true` if the the tile at the supplied `x`
+    /// and `y` position is walkable, `false` otherwise.
+    ///
+    /// # Arguments
+    ///
+    /// * `x`: The x coordinate of the tile.
+    /// * `y`: The y coordinate of the tile.
+    ///
+    pub fn is_tile_walkable(&self, x: i32, y: i32) -> bool {
+        match self.check_idx(x, y) {
+            Ok(idx) => !self.blocked_tiles[idx],
+            Err(err) => {
+                console::log(err);
+                false
+            }
+        }
+    }
+
+    /// Returns the list of [Entitie]s which are currently on the tile
+    /// at the given `x` and `y` position.
+    ///
+    /// # Arguments
+    /// * `x`: X position of the tile whos content should be returned.
+    /// * `y`: Y position of the tile whos content should be returned.
+    ///
+    pub fn tile_contents_get(&self, x: i32, y: i32) -> &Vec<Entity> {
+        &self.tile_contents[self.coordinates_to_idx(x, y)]
+    }
+
+    /// Adds the passed `entity` to the contents of the tile at given
+    /// `x` and `y` position.
+    ///
+    /// # Arguments
+    /// * `x`: The x position of the tile.
+    /// * `y`: The y position of the tile.
+    /// * `entity`: The entity to add to the tile at the given `x` and `y` position.
+    ///
+    pub fn tile_contents_push(&mut self, x: i32, y: i32, entity: Entity) -> &Self {
+        let idx = self.coordinates_to_idx(x, y);
+        self.tile_contents[idx].push(entity);
+        self
+    }
+
+    /// Removes the `entity` from the contents of the tile at the supplied
+    /// `x` and `y` position.
+    ///
+    /// # Arguments
+    /// * `x`: The x position of the tile from whos contents the `entity` should be removed.
+    /// * `y`: The y position of the tile from whos content the `entity` should be removed.
+    /// * `entity`: The entity to remove from the contents of the tile at the given `x`
+    /// and `y` position.
+    ///
+    pub fn tile_contents_remove(&mut self, x: i32, y: i32, entity: Entity) -> &Self {
+        let idx = self.coordinates_to_idx(x, y);
+        self.tile_contents[idx].retain(|element| *element != entity);
+        self
+    }
+
+    /// Clears the contents of all tiles on the map.
+    pub fn clear_tile_contents(&mut self) -> &Self {
+        for contents in self.tile_contents.iter_mut() {
+            contents.clear();
+        }
+
         self
     }
 
@@ -289,6 +408,32 @@ impl Map {
         self.height - 1
     }
 
+    /// Maps the passed `x` and `y` coordinates to a
+    /// index in the [Map.tile] vector index using the
+    /// ´max_width` and returns it.
+    ///  
+    /// # Arguments
+    /// * `x`: X coordinate of the tile.
+    /// * `y`: Y coordinate of the tile.
+    /// * `max_width`: The max width of the map.
+    ///
+    pub fn coordinates_to_idx(&self, x: i32, y: i32) -> usize {
+        (y as usize * self.width as usize) + x as usize
+    }
+
+    /// Maps the passed index back to the associated `x` and `y`
+    /// coordinates and returns them as tuple in the form of (x, y).
+    ///
+    /// # Arguments
+    /// * `idx`: The index which should be mapped back to `x` and `y` coordinates.
+    ///
+    pub fn idx_to_coordinates(&self, idx: usize) -> (i32, i32) {
+        let x = idx as i32 % self.width;
+        let y = idx as i32 / self.width;
+
+        (x, y)
+    }
+
     /// Checks if the given coordinate is within the bounds of the
     /// map. Returns a [Result], which contains the map index at the
     /// given coordinate. Otherwise a appropriate error message is returned.
@@ -299,7 +444,7 @@ impl Map {
     ///
     pub fn check_idx(&self, x: i32, y: i32) -> Result<usize, String> {
         // Get map idx of the position
-        let idx = map_idx(x, y, self.width);
+        let idx = self.coordinates_to_idx(x, y);
 
         // Return the idx if it is in bounds
         if idx > 0 && idx < self.width as usize * self.height as usize {
@@ -317,7 +462,7 @@ impl Map {
     /// Runs the passed function `block` for each room in the map.
     ///
     /// # Arguments
-    /// * `block`: The function to exectue for each room.
+    /// * `block`: The function to execute for each room.
     ///
     pub fn apply_to_rooms<F>(&self, mut block: F)
     where
@@ -333,7 +478,7 @@ impl Map {
     ///
     /// # Arguments
     /// * `skip`: How many rooms the iteration should skip.
-    /// * `block`: The function to exectue for each room.
+    /// * `block`: The function to execute for each room.
     ///
     pub fn apply_to_rooms_skip<F>(&self, skip: usize, mut block: F)
     where
@@ -344,11 +489,12 @@ impl Map {
         }
     }
 
-    /// Resets all fov flags back to false.
-    pub fn reset_tiles_in_fov(&mut self) -> &Self {
-        for tile in self.tiles_in_fov.iter_mut() {
-            *tile = false;
+    /// Refreshes the [blocked_tiles] vector.
+    pub fn refresh_blocked_tiles(&mut self) -> &Self {
+        for (idx, tile) in self.tiles.iter_mut().enumerate() {
+            self.blocked_tiles[idx] = *tile == TileType::WALL;
         }
+
         self
     }
 
@@ -360,13 +506,12 @@ impl Map {
     /// * `room`: The room to draw on the map.
     ///
     pub fn draw_room(&mut self, room: &Rectangle) -> &Self {
-        // Iterate the room coords and set the positions to a floor tile
+        // Iterate the room coordinates and set the positions to a floor tile
         for x in room.left + 1..=room.right {
             for y in room.top + 1..=room.bottom {
                 self.set_tile(x, y, TileType::FLOOR);
             }
         }
-
         self
     }
 
@@ -385,7 +530,6 @@ impl Map {
         for room in rooms.iter() {
             self.draw_room(room);
         }
-
         self
     }
 
@@ -442,12 +586,11 @@ impl Map {
                 Ok(idx) => {
                     self.tiles[idx] = TileType::FLOOR;
                 }
-                Err(_) => {
-                    // no-op
+                Err(err) => {
+                    console::log(err);
                 }
             }
         }
-
         self
     }
 
@@ -481,31 +624,30 @@ impl Map {
                 }
             }
         }
-
         self
     }
 
     /// Draws the passed [TileType] at the given `x` and `y` coordinate.
-    /// 
+    ///
     /// # Arguments
     /// * `x`: The `x` position of the tile.
     /// * `y`: The `y` position of the tile.
     /// * `tile`: The [TileType] which should be set at the passed position.
     /// * `ctx`: The [Rltk] context, in which the `tile` should be drawn.
-    /// 
+    ///
     /// # Notes
-    /// 
+    ///
     /// The tiles are drawn depending on two factors.
-    /// * If the thile is is in the fov of the player, it is drawn with full color.
+    /// * If the tile is is in the fov of the player, it is drawn with full color.
     /// * If the tile is outside of the fov it is drawn in its grayscale counterpart.
-    /// 
+    ///
     fn draw_tile(&self, x: i32, y: i32, tile: &TileType, ctx: &mut Rltk) -> &Self {
         let mut tile = match tile {
             TileType::FLOOR => TileFactory::new_floor(),
             TileType::WALL => TileFactory::new_wall(),
         };
 
-        if !self.tiles_in_fov[map_idx(x, y, self.width)] {
+        if !self.tiles_in_fov[self.coordinates_to_idx(x, y)] {
             tile.fg = tile.fg.to_greyscale();
         }
 
@@ -515,30 +657,65 @@ impl Map {
     }
 }
 
-/// Maps the passed `x` and `y` coordinates to a
-/// index in the [Map.tile] vector index using the
-/// ´max_width` and returns it.
-///  
-/// # Arguments
-/// * `x`: X coordinate of the tile.
-/// * `y`: Y coordinate of the tile.
-/// * `max_width`: The max width of the map.
-///
-fn map_idx(x: i32, y: i32, max_width: i32) -> usize {
-    (y as usize * max_width as usize) + x as usize
-}
-
-/// Impl to provide rtlk with the dimension of the map
 impl Algorithm2D for Map {
     fn dimensions(&self) -> Point {
         Point::new(self.width, self.height)
     }
 }
 
-/// Impl to provide rltk with the information
-/// which tiles are impassable (opaque).
 impl BaseMap for Map {
     fn is_opaque(&self, idx: usize) -> bool {
         self.tiles[idx] == TileType::WALL
+    }
+
+    fn get_available_exits(&self, idx: usize) -> SmallVec<[(usize, f32); 10]> {
+        let mut walkable_tiles = SmallVec::new();
+
+        let (x, y) = self.idx_to_coordinates(idx);
+        let width = self.width as usize;
+
+        // Check tiles in cardinal directions
+        if self.is_tile_walkable(x - 1, y) {
+            walkable_tiles.push((idx - 1, 1.0));
+        }
+        if self.is_tile_walkable(x + 1, y) {
+            walkable_tiles.push((idx + 1, 1.0));
+        }
+        if self.is_tile_walkable(x, y - 1) {
+            walkable_tiles.push((idx - width, 1.0));
+        }
+        if self.is_tile_walkable(x, y + 1) {
+            walkable_tiles.push((idx + width, 1.0));
+        }
+
+        // Check tiles in diagonal directions
+        if self.is_tile_walkable(x - 1, y - 1) {
+            walkable_tiles.push(((idx - width) - 1, 1.45));
+        }
+
+        if self.is_tile_walkable(x + 1, y - 1) {
+            walkable_tiles.push(((idx - width) + 1, 1.45));
+        }
+
+        if self.is_tile_walkable(x - 1, y + 1) {
+            walkable_tiles.push(((idx + width) - 1, 1.45));
+        }
+
+        if self.is_tile_walkable(x + 1, y + 1) {
+            walkable_tiles.push(((idx + width) + 1, 1.45));
+        }
+
+        walkable_tiles
+    }
+
+    fn get_pathing_distance(&self, idx1: usize, idx2: usize) -> f32 {
+        let width = self.width as usize;
+        let (x1, y1) = (idx1 % width, idx1 / width);
+        let (x2, y2) = (idx2 % width, idx2 / width);
+
+        let point1 = Point::new(x1, y1);
+        let point2 = Point::new(x2, y2);
+
+        pythagoras_distance(&point1, &point2)
     }
 }

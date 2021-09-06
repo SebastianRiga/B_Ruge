@@ -1,9 +1,14 @@
 //! Module containing all systems of the game
 
-use rltk::{field_of_view, console, Point};
+use rltk::{a_star_search, console, field_of_view, Point};
 use specs::prelude::*;
 
-use super::{Map, Player, Position, FOV, Monster, Name};
+use crate::{DamageCounter, Statistics};
+
+use super::{
+    pythagoras_distance, Collision, Map, MeleeAttack, Monster, Name, Player, Position,
+    ProcessingState, FOV,
+};
 
 /// System that handles the field of view
 /// processing. See the implementation below
@@ -28,7 +33,7 @@ impl<'a> System<'a> for FOVSystem {
             // If the [FOV] is dirty, calculate new
             if fov.is_dirty {
                 // Invalidate [FOV] flag
-                fov.is_dirty = false;
+                fov.mark_as_clean();
 
                 // Recalculate the [FOV]
                 fov.content.clear();
@@ -57,25 +62,221 @@ impl<'a> System<'a> for FOVSystem {
 /// Base AI system for all monsters.
 pub struct MonsterAI {}
 
-impl <'a>System<'a> for MonsterAI {
+impl<'a> System<'a> for MonsterAI {
     type SystemData = (
-        ReadStorage<'a, FOV>,
-        ReadExpect<'a, Point>,
-        ReadStorage<'a, Monster>,
-        ReadStorage<'a, Name>
+        // Entities
+        Entities<'a>,
+        // Read resources
+        WriteExpect<'a, Map>,            // Read the game map from the ecs
+        ReadExpect<'a, Point>,           // Read the player position from the ecs
+        ReadExpect<'a, Entity>,          // Read the player entity form the ecs
+        ReadExpect<'a, ProcessingState>, // Get the current processing state of the game
+        // Read storages
+        ReadStorage<'a, Monster>, // Get all monster components
+        // Write storages
+        WriteStorage<'a, FOV>,         // Get all fov components
+        WriteStorage<'a, Position>,    // Get all position components
+        WriteStorage<'a, MeleeAttack>, // Get all melee attacker components
     );
 
     fn run(&mut self, data: Self::SystemData) {
         // Get system data
-        let (fovs, player_position, monsters, names) = data;
+        let (
+            entities,
+            mut map,
+            player_position,
+            player_entity,
+            processing_state,
+            monsters,
+            mut fovs,
+            mut positions,
+            mut melee_attacks,
+        ) = data;
+
+        if *processing_state != ProcessingState::MonsterTurn {
+            return;
+        }
 
         // Iterate through all monsters that have an fov
-        for (fov, _monster, name) in (&fovs, &monsters, &names).join() {
+        for (entity, fov, _monster, position) in
+            (&entities, &mut fovs, &monsters, &mut positions).join()
+        {
+            let distance_to_player = pythagoras_distance(&position.to_point(), &*player_position);
+
+            if distance_to_player < 1.5 {
+                let melee_attack = MeleeAttack {
+                    target: *player_entity,
+                };
+
+                melee_attacks.insert(entity, melee_attack).expect(&format!(
+                    "Adding melee attack from {} against player failed!",
+                    entity.id()
+                ));
+
+                return;
+            }
+
             // If the fov of the monster contains the player
             // its AI is executed.
             if fov.content.contains(&*player_position) {
-                console::log(format!("{} growls aggressively!", name.name));
+                let monster_idx = map.coordinates_to_idx(position.x, position.y);
+                let player_idx = map.coordinates_to_idx(player_position.x, player_position.y);
+
+                // Calculate path for the monster to chase the player
+                let path = a_star_search(monster_idx, player_idx, &mut *map);
+
+                // If a path could successfully be calculated, update the monsters position
+                // according to the new coordinates from the path.
+                if path.success && path.steps.len() > 1 {
+                    // Unblock old tile for the remaining monsters in the loop
+                    map.set_tile_is_blocked(position.x, position.y, false);
+
+                    // Calculate the next position the monster will move to
+                    let next_position = map.idx_to_coordinates(path.steps[1]);
+
+                    // Update the monster position
+                    position.update_with_tuple(next_position);
+
+                    // Block the tile the monster has walked to
+                    map.set_tile_is_blocked(next_position.0, next_position.1, true);
+
+                    // Mark the fov of the monster as dirty so it can be recalculated for the monster
+                    fov.mark_as_dirty();
+                }
             }
         }
+    }
+}
+
+/// System updating the properties and tile attributes
+/// of the game [Map].
+pub struct MapDexSystem {}
+
+impl<'a> System<'a> for MapDexSystem {
+    type SystemData = (
+        WriteExpect<'a, Map>,
+        ReadStorage<'a, Position>,
+        ReadStorage<'a, Collision>,
+        Entities<'a>,
+    );
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (mut map, positions, collisions, entities) = data;
+
+        map.clear_tile_contents();
+        map.refresh_blocked_tiles();
+
+        for (position, entity) in (&positions, &entities).join() {
+            let _collision = collisions.get(entity);
+
+            if let Some(_collision) = _collision {
+                map.set_tile_is_blocked(position.x, position.y, true);
+            }
+
+            map.tile_contents_push(position.x, position.y, entity);
+        }
+    }
+}
+
+/// System to handle melee combat interactions.
+pub struct MeleeCombatSystem {}
+
+impl<'a> System<'a> for MeleeCombatSystem {
+    type SystemData = (
+        Entities<'a>,
+        WriteStorage<'a, MeleeAttack>,
+        ReadStorage<'a, Name>,
+        ReadStorage<'a, Statistics>,
+        WriteStorage<'a, DamageCounter>,
+    );
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (entities, mut attackers, names, statistics, mut damage_counter) = data;
+
+        for (_, attacker, name, statistic) in (&entities, &attackers, &names, &statistics).join() {
+            if statistic.hp > 0 {
+                let target = attacker.target;
+
+                let target_statistics = statistics.get(target).unwrap();
+
+                if target_statistics.hp > 0 {
+                    let target_name = names.get(target).unwrap();
+
+                    let damage = i32::max(0, statistic.power - target_statistics.defense);
+
+                    if damage == 0 {
+                        console::log(&format!(
+                            "{} was unable to break {}'s defenses",
+                            &name.name, &target_name.name
+                        ));
+                    } else {
+                        console::log(&format!(
+                            "{} hits {} for {} damage!",
+                            &name.name, &target_name.name, damage
+                        ));
+                        DamageCounter::add_damage_taken(&mut damage_counter, target, damage);
+                    }
+                }
+            }
+        }
+
+        attackers.clear();
+    }
+}
+
+/// System that takes all the damage inflicted to an entity,
+/// adds up the damage and subtracts it from the entities
+/// health.
+pub struct DamageSystem {}
+
+impl DamageSystem {
+    /// Removes all entities which have been defeated in the last executed turn
+    /// from the `ecs`.
+    ///
+    /// # Arguments
+    /// * `ecs`: The [World] from which the defeated entities should be removed.
+    ///
+    pub fn clean_up(ecs: &mut World) {
+        let mut defeated_entities: Vec<Entity> = Vec::new();
+
+        {
+            let entities = ecs.entities();
+            let names = ecs.read_storage::<Name>();
+            let players = ecs.read_storage::<Player>();
+            let statistics = ecs.read_storage::<Statistics>();
+
+            for (entity, statistic) in (&entities, &statistics).join() {
+                if statistic.hp < 1 {
+                    let player = players.get(entity);
+                    match player {
+                        None => defeated_entities.push(entity),
+                        Some(_) => {
+                            let player_name = names.get(entity).unwrap();
+                            console::log(&format!("Player {} has died!", player_name.name));
+                        }
+                    }
+                }
+            }
+        }
+
+        ecs.delete_entities(&defeated_entities)
+            .expect("Unable to clean up defeated entities!");
+    }
+}
+
+impl<'a> System<'a> for DamageSystem {
+    type SystemData = (
+        WriteStorage<'a, Statistics>,
+        WriteStorage<'a, DamageCounter>,
+    );
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (mut statistics, mut damage_counters) = data;
+
+        for (mut statistic, damage_counter) in (&mut statistics, &damage_counters).join() {
+            statistic.hp -= damage_counter.damage_values.iter().sum::<i32>();
+        }
+
+        damage_counters.clear();
     }
 }

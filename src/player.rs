@@ -1,10 +1,13 @@
 //! Collection of functions for the player.
 
-use rltk::{Rltk, VirtualKeyCode, Point};
-use specs::prelude::*;
 use std::cmp::{max, min};
 
-use super::{Map, Player, Position, State, TileType, FOV, ProcessingState};
+use rltk::{Point, Rltk, VirtualKeyCode};
+use specs::prelude::*;
+
+use super::{
+    Map, MeleeAttack, Player, Position, ProcessingState, State, Statistics, FOV, GAME_CONFIG,
+};
 
 /// Moves the [Player] entity through its stored [Position]
 /// in the `ecs` by adding the `delta_x` and `delta_y` to it.
@@ -20,18 +23,44 @@ use super::{Map, Player, Position, State, TileType, FOV, ProcessingState};
 /// bounds or not walkable, the player wont be moved.
 ///  
 pub fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
+    // Fetch map from ecs
     let map = ecs.fetch::<Map>();
+    let entities = ecs.entities();
+
+    // Write ecs storages
     let mut fovs = ecs.write_storage::<FOV>();
-    let mut players = ecs.write_storage::<Player>();
+    let players = ecs.write_storage::<Player>();
     let mut positions = ecs.write_storage::<Position>();
+    let mut melee_attacks = ecs.write_storage::<MeleeAttack>();
     let mut player_ecs_position = ecs.write_resource::<Point>();
 
-    for (_, position, fov) in (&mut players, &mut positions, &mut fovs).join() {
-        let new_pos = map.get_tile(position.x + delta_x, position.y + delta_y);
+    // Read ecs storages
+    let statistics = ecs.read_storage::<Statistics>();
 
-        if new_pos != TileType::WALL {
-            position.x = min(79, max(0, position.x + delta_x));
-            position.y = min(49, max(0, position.y + delta_y));
+    for (entity, _, position, fov) in (&entities, &players, &mut positions, &mut fovs).join() {
+        let new_position = Position {
+            x: position.x + delta_x,
+            y: position.y + delta_y,
+        };
+
+        for target in map.tile_contents_get(new_position.x, new_position.y).iter() {
+            let enemy = statistics.get(*target);
+
+            if let Some(_) = enemy {
+                let attack = MeleeAttack { target: *target };
+
+                melee_attacks.insert(entity, attack).expect(&format!(
+                    "Adding melee attack from player agianst entity with id {} failed!",
+                    entity.id()
+                ));
+            }
+        }
+
+        let is_new_position_blocked = map.is_tile_blocked(new_position.x, new_position.y);
+
+        if !is_new_position_blocked {
+            position.x = min(GAME_CONFIG.window_width - 1, max(0, new_position.x));
+            position.y = min(GAME_CONFIG.window_height - 1, max(0, new_position.y));
 
             player_ecs_position.x = position.x;
             player_ecs_position.y = position.y;
@@ -50,8 +79,9 @@ pub fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
 ///
 pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> ProcessingState {
     match ctx.key {
-        None => { return ProcessingState::IDLE }
+        None => return ProcessingState::WaitingForInput,
         Some(key) => match key {
+            // Cardinal directions
             VirtualKeyCode::W
             | VirtualKeyCode::Up
             | VirtualKeyCode::Numpad8
@@ -72,8 +102,19 @@ pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> Processing
             | VirtualKeyCode::Numpad6
             | VirtualKeyCode::L => player_move(1, 0, &mut game_state.ecs),
 
-            _ => { return ProcessingState::IDLE }
+            // Diagonal directions
+            VirtualKeyCode::Numpad7 | VirtualKeyCode::Q => player_move(-1, -1, &mut game_state.ecs),
+
+            VirtualKeyCode::Numpad9 | VirtualKeyCode::E => player_move(1, -1, &mut game_state.ecs),
+
+            VirtualKeyCode::Numpad1 | VirtualKeyCode::Y => player_move(-1, 1, &mut game_state.ecs),
+
+            VirtualKeyCode::Numpad3 | VirtualKeyCode::X => player_move(1, 1, &mut game_state.ecs),
+
+            VirtualKeyCode::Escape => ctx.quit(),
+
+            _ => return ProcessingState::WaitingForInput,
         },
     }
-    ProcessingState::RUNNING
+    ProcessingState::PlayerTurn
 }

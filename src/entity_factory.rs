@@ -3,7 +3,7 @@
 use rltk::RGB;
 use specs::prelude::*;
 
-use super::{Player, Position, Renderable, FOV, Monster, Name};
+use super::{Collision, Monster, Name, Player, Position, Renderable, Statistics, FOV};
 
 /// Factory to create instances of all
 /// entities in the game.
@@ -35,7 +35,13 @@ impl EntityFactory {
                 is_dirty: true,
             })
             .with(Name {
-                name: "Rouge".to_string()
+                name: "Rouge".to_string(),
+            })
+            .with(Statistics {
+                hp_max: 30,
+                hp: 30,
+                power: 5,
+                defense: 2,
             })
             .build()
     }
@@ -66,7 +72,14 @@ impl EntityFactory {
             })
             .with(Monster {})
             .with(Name {
-                name: format!("{}{}", "Goblin", suffix.unwrap_or(String::default()))
+                name: format!("{}{}", "Goblin", suffix.unwrap_or(String::default())),
+            })
+            .with(Collision {})
+            .with(Statistics {
+                hp_max: 10,
+                hp: 10,
+                power: 2,
+                defense: 1,
             })
             .build()
     }
@@ -97,7 +110,14 @@ impl EntityFactory {
             })
             .with(Monster {})
             .with(Name {
-                name: format!("{}{}", "Gremlin", suffix.unwrap_or(String::default()))
+                name: format!("{}{}", "Gremlin", suffix.unwrap_or(String::default())),
+            })
+            .with(Collision {})
+            .with(Statistics {
+                hp_max: 16,
+                hp: 16,
+                power: 4,
+                defense: 2,
             })
             .build()
     }
