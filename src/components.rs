@@ -1,6 +1,6 @@
 //! List of all components used in the game.
 
-use rltk::{Point, RGB};
+use rltk::{FontCharType, Point, RGB};
 use specs::prelude::*;
 use specs_derive::*;
 
@@ -44,6 +44,45 @@ impl Position {
     pub fn update_with_tuple(&mut self, tuple: (i32, i32)) -> &Self {
         self.update(tuple.0, tuple.1)
     }
+
+    /// Returns `true` if the `x` and `y` coordinates of the
+    /// the calling [Position] and the passed [Position]
+    /// are equal. `False` otherwise.
+    /// 
+    /// # Arguments
+    /// * `other`: The [Position], the calling [Position]
+    /// should be compared to.
+    /// 
+    pub fn is_equal(&self, other: &Position) -> bool {
+        self.x == other.x && self.y == other.y
+    }
+
+    /// Returns `true` if the `x` and `y` coordinates of the
+    /// calling [Position] and the passed [Point] are equal.
+    /// `False` otherwise.
+    /// 
+    /// # Arguments
+    /// * `point`: The [Point] with which the [Position] should be compared.
+    /// 
+    pub fn is_equal_to_point(&self, point: &Point) -> bool {
+        self.x == point.x && self.y == point.y
+    }
+
+    /// Returns `true` if the `x` and `y` coordinates of the
+    /// calling [Position] and passed `(i32, i32) tuple` are
+    /// equal. `False` otherwise. 
+    /// 
+    /// # Arguments
+    /// * `tuple`: The `(i32, i32) tuple` the [Position] should
+    /// be compared to.
+    /// 
+    /// # Notes
+    /// * The `(i32, i32) tuple` are presumed to be of the format
+    /// `(x, y)`.
+    /// 
+    pub fn is_equal_to_tuple(&self, tuple: &(i32, i32)) -> bool {
+        self.x == tuple.0 && self.y == tuple.1
+    }
 }
 
 /// Component to describe the render
@@ -51,7 +90,7 @@ impl Position {
 #[derive(Component)]
 pub struct Renderable {
     /// Font symbol of the entity.
-    pub symbol: rltk::FontCharType,
+    pub symbol: FontCharType,
 
     /// Foreground color of the entity.
     pub fg: RGB,
@@ -93,6 +132,12 @@ impl FOV {
     pub fn mark_as_clean(&mut self) -> &Self {
         self.is_dirty = false;
         self
+    }
+
+    /// Returns `true` if the passed [Point] is contained
+    /// in the [FOV]. Otherwise returns `false`.
+    pub fn contains(&self, point: &rltk::Point) -> bool {
+        self.content.contains(point)
     }
 }
 
@@ -153,7 +198,7 @@ impl DamageCounter {
     /// into the associated `ecs` `store`.
     ///
     /// # Arguments
-    /// * `store`: The store in which the [DamageTaken] component should be saved.
+    /// * `store`: The store in which the [DamageCounter] component should be saved.
     /// * `target`: The [Entity] taking the damage.
     /// * `amount`: The number of damage the [Entity] has taken.
     ///

@@ -2,8 +2,12 @@
 
 //! D&D and NetHack inspired dungeon crawler written in rust.
 
-use rltk::{console, RltkBuilder, RGB};
+use rltk::{console, RltkBuilder};
 use specs::prelude::*;
+
+mod ui;
+mod config;
+mod swatch;
 
 mod state;
 pub use state::*;
@@ -20,9 +24,6 @@ pub use rectangle::Rectangle;
 mod map;
 pub use map::*;
 
-mod config;
-pub use config::*;
-
 mod systems;
 pub use systems::*;
 
@@ -34,6 +35,12 @@ pub use tile_factory::*;
 
 mod functions;
 pub use functions::*;
+
+mod dialog;
+pub use dialog::*;
+
+mod data;
+pub use data::*;
 
 mod scribbles;
 pub use scribbles::*;
@@ -58,15 +65,14 @@ fn main() -> rltk::BError {
     );
 
     // Create a new terminal
-    let mut terminal = RltkBuilder::simple(GAME_CONFIG.window_width, GAME_CONFIG.window_height)?
-        .with_title(GAME_CONFIG.name)
+    let mut terminal = RltkBuilder::simple(config::WINDOW_WIDTH, config::WINDOW_HEIGHT)?
+        .with_title(config::GAME_NAME)
         .with_fullscreen(false)
         .build()?;
 
     // Enable scan lines for the nostalgic feel.
     // TODO: Need to find a possibility to insert custom shaders.
     terminal.with_post_scanlines(true);
-    terminal.screen_burn_color(RGB::named(rltk::BLACK));
 
     // Create the initial game state
     let mut game_state = State { ecs: World::new() };
@@ -84,14 +90,14 @@ fn main() -> rltk::BError {
     game_state.ecs.register::<DamageCounter>();
 
     // Create the game map
-    let map = Map::new_map_with_rooms(GAME_CONFIG.window_width, GAME_CONFIG.window_height);
+    let map = Map::new_map_with_rooms(config::MAP_WIDTH, config::MAP_HEIGHT);
 
     // Get a new random number generator for monster placement
     let mut rng = rltk::RandomNumberGenerator::new();
 
     // Apply the monster creation to all rooms expect for the first.
     // The rng is used to choose a random monster to place
-    map.apply_to_rooms_skip(1, |idx, room| match rng.roll_dice(1, 2) {
+    map.rooms_for_each_skip(1, |idx, room| match rng.roll_dice(1, 2) {
         1 => {
             EntityFactory::new_goblin(
                 &room.center(),
@@ -114,10 +120,18 @@ fn main() -> rltk::BError {
     // Create the player
     let player_entity = EntityFactory::new_player(&player_position, &mut game_state.ecs);
 
+    // Create the games message logger
+    let game_log = GameLog::new();
+
+    // Create the player pathing object
+    let player_pathing = PlayerPathing::new();
+
     // Insert the game resources into the ecs
     game_state.ecs.insert(map);
     game_state.ecs.insert(player_entity);
     game_state.ecs.insert(player_position.to_point());
+    game_state.ecs.insert(game_log);
+    game_state.ecs.insert(player_pathing);
 
     // Set the initial processing state of the game
     game_state.ecs.insert(ProcessingState::Internal);

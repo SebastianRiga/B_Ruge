@@ -1,39 +1,32 @@
 //! Global game settings.
 
-/// Struct to manage the globaly constant
-/// values of the game.
-pub struct Config {
-    /// Name of the game.
-    pub name: &'static str,
+/// The current version of the game.
+pub const GAME_VERSION: &'static str = "v0.2.6";
 
-    /// Window width in tiles.
-    pub window_width: i32,
+/// The name of the game, needed for display on the
+/// window and in-game.
+pub const GAME_NAME: &'static str = "B_Ruge";
 
-    /// Window height in tiles.
-    pub window_height: i32,
+/// The width of the game's window.
+pub const WINDOW_WIDTH: i32 = 80;
 
-    /// Maximum number of rooms allowed
-    /// on the map.
-    pub max_rooms: i32,
+/// The height of the game's window.
+pub const WINDOW_HEIGHT: i32 = 50;
 
-    /// Minimum size allowed for a room on
-    /// the map.
-    pub min_room_size: i32,
+/// The width of the in-game map.
+pub const MAP_WIDTH: i32 = 80;
 
-    /// Maxmimum size allowed for a room
-    /// on the map.
-    pub max_room_size: i32,
-}
+/// The height of the in-game map.
+pub const MAP_HEIGHT: i32 = 40;
 
-/// Immutable global object containing
-/// the constant values of the game.
-///
-/// Usable for size and space calculations.
-pub const GAME_CONFIG: Config = Config {
-    name: "B_Ruge",
-    window_width: 80,
-    window_height: 50,
-    max_rooms: 30,
-    min_room_size: 6,
-    max_room_size: 10,
-};
+/// The maximum amount of rooms the
+/// map can display.
+pub const MAX_ROOMS: i32 = 30;
+
+/// The minimum size of a room on
+/// the map.
+pub const MIN_ROOM_SIZE: i32 = 6;
+
+/// The maximum size of a room on
+/// the map.
+pub const MAX_ROOM_SIZE: i32 = 10;

@@ -2,11 +2,14 @@
 
 use std::cmp::{max, min};
 
-use rltk::{Point, Rltk, VirtualKeyCode};
+use rltk::{a_star_search, Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 
+use crate::{DialogInterface, DialogOption};
+
 use super::{
-    Map, MeleeAttack, Player, Position, ProcessingState, State, Statistics, FOV, GAME_CONFIG,
+    Map, MeleeAttack, Player, PlayerPathing, Position, ProcessingState, State, Statistics, FOV,
+    config,
 };
 
 /// Moves the [Player] entity through its stored [Position]
@@ -59,14 +62,59 @@ pub fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
         let is_new_position_blocked = map.is_tile_blocked(new_position.x, new_position.y);
 
         if !is_new_position_blocked {
-            position.x = min(GAME_CONFIG.window_width - 1, max(0, new_position.x));
-            position.y = min(GAME_CONFIG.window_height - 1, max(0, new_position.y));
+            position.x = min(config::WINDOW_WIDTH - 1, max(0, new_position.x));
+            position.y = min(config::WINDOW_HEIGHT - 1, max(0, new_position.y));
 
             player_ecs_position.x = position.x;
             player_ecs_position.y = position.y;
 
             fov.is_dirty = true;
         }
+    }
+}
+
+fn player_moved_after_click(ecs: &mut World) -> Option<(i32, i32)> {
+    let map = ecs.write_resource::<Map>();
+    let player_ecs_position = ecs.write_resource::<Point>();
+    let mut pathing_writer = ecs.write_resource::<PlayerPathing>();
+
+    match pathing_writer.pop() {
+        Some(idx) => {
+            let (x, y) = map.idx_to_coordinates(idx);
+            let delta_x = x - player_ecs_position.x;
+            let delta_y = y - player_ecs_position.y;
+
+            Some((delta_x, delta_y))
+        }
+        None => None,
+    }
+}
+
+fn handle_new_click_to_move(ecs: &mut World, ctx: &Rltk) {
+    let fovs = ecs.read_storage::<FOV>();
+    let mut map = ecs.write_resource::<Map>();
+    let player = ecs.read_resource::<Entity>();
+    let player_ecs_position = ecs.write_resource::<Point>();
+    let mut pathing_writer = ecs.write_resource::<PlayerPathing>();
+
+    let mouse_position = ctx.mouse_point();
+
+    let start_idx = map.coordinates_to_idx(player_ecs_position.x, player_ecs_position.y);
+    let end_idx = map.coordinates_to_idx(mouse_position.x, mouse_position.y);
+
+    let blocked_tiles = map.blocked_tiles.clone();
+    map.refresh_blocked_tiles();
+
+    let mut path = a_star_search(start_idx, end_idx, &mut *map);
+
+    map.blocked_tiles = blocked_tiles;
+
+    let fov = fovs.get(*player).unwrap();
+
+    if path.success && path.steps.len() > 1 && fov.contains(&mouse_position) {
+        path.steps.remove(0);
+        path.steps.reverse();
+        pathing_writer.update(&mut path.steps);
     }
 }
 
@@ -78,8 +126,15 @@ pub fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
 /// * `ctx`: Reference to the context of the `ecs` to read the key input.
 ///
 pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> ProcessingState {
+    match player_moved_after_click(&mut game_state.ecs) {
+        Some((delta_x, delta_y)) => {
+            player_move(delta_x, delta_y, &mut game_state.ecs);
+            return ProcessingState::PlayerTurn;
+        }
+        None => {}
+    }
+
     match ctx.key {
-        None => return ProcessingState::WaitingForInput,
         Some(key) => match key {
             // Cardinal directions
             VirtualKeyCode::W
@@ -111,10 +166,28 @@ pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> Processing
 
             VirtualKeyCode::Numpad3 | VirtualKeyCode::X => player_move(1, 1, &mut game_state.ecs),
 
-            VirtualKeyCode::Escape => ctx.quit(),
+            VirtualKeyCode::Escape => {
+                DialogInterface::register_dialog(
+                    &mut game_state.ecs,
+                    "Quit game?".to_string(),
+                    "Are you sure you want to end your current run?".to_string(),
+                    &[DialogOption {
+                        description: "Quit".to_string(),
+                        key: VirtualKeyCode::Y,
+                        callback: |ctx| ctx.quit(),
+                    }],
+                );
+            }
 
             _ => return ProcessingState::WaitingForInput,
         },
+        None => {
+            if ctx.left_click {
+                handle_new_click_to_move(&mut game_state.ecs, ctx);
+            }
+            return ProcessingState::WaitingForInput;
+        }
     }
+
     ProcessingState::PlayerTurn
 }

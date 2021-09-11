@@ -5,11 +5,11 @@ use std::cmp::{max, min};
 use rltk::{console, Algorithm2D, BaseMap, Point, RandomNumberGenerator, Rltk, SmallVec};
 use specs::prelude::Entity;
 
-use super::{pythagoras_distance, Rectangle, TileFactory, GAME_CONFIG};
+use super::{pythagoras_distance, Rectangle, TileFactory, config};
 
 /// Enum describing all available tile
 /// types of the game.
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum TileType {
     /// Any floor, walkable.
     FLOOR,
@@ -20,7 +20,7 @@ pub enum TileType {
 /// Struct representing the map of
 /// a level in the game world.
 /// A tile is represented by a [TileType].
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct Map {
     /// Width of the map in tiles.
     pub width: i32,
@@ -143,10 +143,10 @@ impl Map {
         let mut rng = RandomNumberGenerator::new();
 
         // Create as many rooms as defined in the [GAME_CONFIG]
-        for _ in 0..GAME_CONFIG.max_rooms {
+        for _ in 0..config::MAX_ROOMS {
             // Calc the [Rectangle] width and height args
-            let room_width = rng.range(GAME_CONFIG.min_room_size, GAME_CONFIG.max_room_size);
-            let room_height = rng.range(GAME_CONFIG.min_room_size, GAME_CONFIG.max_room_size);
+            let room_width = rng.range(config::MIN_ROOM_SIZE, config::MAX_ROOM_SIZE);
+            let room_height = rng.range(config::MIN_ROOM_SIZE, config::MAX_ROOM_SIZE);
 
             // Calc the x and y position of the top left corner of the [Rectangle].
             let x = rng.roll_dice(1, width - room_width - 1) - 1;
@@ -338,7 +338,7 @@ impl Map {
     /// * `y`: The y coordinate of the tile.
     ///
     pub fn is_tile_walkable(&self, x: i32, y: i32) -> bool {
-        match self.check_idx(x, y) {
+        match self.check_idx_result(x, y) {
             Ok(idx) => !self.blocked_tiles[idx],
             Err(err) => {
                 console::log(err);
@@ -347,7 +347,7 @@ impl Map {
         }
     }
 
-    /// Returns the list of [Entitie]s which are currently on the tile
+    /// Returns the list of [Entity]s which are currently on the tile
     /// at the given `x` and `y` position.
     ///
     /// # Arguments
@@ -442,7 +442,7 @@ impl Map {
     /// * `x`: X coordinate of the position.
     /// * `y`: Y coordinate of the position.
     ///
-    pub fn check_idx(&self, x: i32, y: i32) -> Result<usize, String> {
+    pub fn check_idx_result(&self, x: i32, y: i32) -> Result<usize, String> {
         // Get map idx of the position
         let idx = self.coordinates_to_idx(x, y);
 
@@ -459,17 +459,35 @@ impl Map {
         Err(err)
     }
 
+    /// Returns `true` if the passed `x` and `y`
+    /// coordinate are contained in the [Map].
+    /// Otherwise `false` is returned.
+    /// 
+    /// # Arguments
+    /// * `x`: The x coordinate of the tile to check.
+    /// * `y`: The y coordinate of the tile to check.
+    /// 
+    /// # See also
+    /// * [Map::check_idx_result]: Used to check the index.
+    /// 
+    pub fn check_idx(&self, x: i32, y: i32) -> bool {
+        if let Ok(_) = self.check_idx_result(x, y) {
+            return true;
+        }
+        false
+    }
+
     /// Runs the passed function `block` for each room in the map.
     ///
     /// # Arguments
     /// * `block`: The function to execute for each room.
     ///
-    pub fn apply_to_rooms<F>(&self, mut block: F)
+    pub fn rooms_for_each<F>(&self, mut block: F)
     where
         F: FnMut(&Rectangle),
     {
         for room in self.rooms.iter().skip(1) {
-            block(&room);
+            block(room);
         }
     }
 
@@ -480,16 +498,16 @@ impl Map {
     /// * `skip`: How many rooms the iteration should skip.
     /// * `block`: The function to execute for each room.
     ///
-    pub fn apply_to_rooms_skip<F>(&self, skip: usize, mut block: F)
+    pub fn rooms_for_each_skip<F>(&self, skip: usize, mut block: F)
     where
         F: FnMut(usize, &Rectangle),
     {
         for (idx, room) in self.rooms.iter().skip(skip).enumerate() {
-            block(idx, &room);
+            block(idx, room);
         }
     }
 
-    /// Refreshes the [blocked_tiles] vector.
+    /// Refreshes the [Map::blocked_tiles] vector.
     pub fn refresh_blocked_tiles(&mut self) -> &Self {
         for (idx, tile) in self.tiles.iter_mut().enumerate() {
             self.blocked_tiles[idx] = *tile == TileType::WALL;
@@ -582,7 +600,7 @@ impl Map {
         // Iterate from the minimum passed x coordinate to the maximum
         for x in min(start_x, end_x)..=max(start_x, end_x) {
             // If the idx is within bounds, set a floor tile
-            match self.check_idx(x, y) {
+            match self.check_idx_result(x, y) {
                 Ok(idx) => {
                     self.tiles[idx] = TileType::FLOOR;
                 }
@@ -614,7 +632,7 @@ impl Map {
     fn draw_vertical_intersection(&mut self, start_y: i32, end_y: i32, x: i32) -> &Self {
         // Iterate from the minimum passed y coordinate to the maximum
         for y in min(start_y, end_y)..=max(start_y, end_y) {
-            match self.check_idx(x, y) {
+            match self.check_idx_result(x, y) {
                 // If the idx is within bounds, set a floor tile
                 Ok(idx) => {
                     self.tiles[idx] = TileType::FLOOR;

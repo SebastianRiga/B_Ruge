@@ -6,7 +6,7 @@ use specs::prelude::*;
 use crate::{DamageCounter, Statistics};
 
 use super::{
-    pythagoras_distance, Collision, Map, MeleeAttack, Monster, Name, Player, Position,
+    pythagoras_distance, Collision, GameLog, Map, MeleeAttack, Monster, Name, Player, Position,
     ProcessingState, FOV,
 };
 
@@ -184,6 +184,7 @@ pub struct MeleeCombatSystem {}
 impl<'a> System<'a> for MeleeCombatSystem {
     type SystemData = (
         Entities<'a>,
+        WriteExpect<'a, GameLog>,
         WriteStorage<'a, MeleeAttack>,
         ReadStorage<'a, Name>,
         ReadStorage<'a, Statistics>,
@@ -191,7 +192,7 @@ impl<'a> System<'a> for MeleeCombatSystem {
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (entities, mut attackers, names, statistics, mut damage_counter) = data;
+        let (entities, mut game_log, mut attackers, names, statistics, mut damage_counter) = data;
 
         for (_, attacker, name, statistic) in (&entities, &attackers, &names, &statistics).join() {
             if statistic.hp > 0 {
@@ -205,12 +206,12 @@ impl<'a> System<'a> for MeleeCombatSystem {
                     let damage = i32::max(0, statistic.power - target_statistics.defense);
 
                     if damage == 0 {
-                        console::log(&format!(
+                        game_log.messages_push(&format!(
                             "{} was unable to break {}'s defenses",
                             &name.name, &target_name.name
                         ));
                     } else {
-                        console::log(&format!(
+                        game_log.messages_push(&format!(
                             "{} hits {} for {} damage!",
                             &name.name, &target_name.name, damage
                         ));
@@ -243,17 +244,23 @@ impl DamageSystem {
             let entities = ecs.entities();
             let names = ecs.read_storage::<Name>();
             let players = ecs.read_storage::<Player>();
+            let mut game_log = ecs.write_resource::<GameLog>();
             let statistics = ecs.read_storage::<Statistics>();
 
             for (entity, statistic) in (&entities, &statistics).join() {
                 if statistic.hp < 1 {
                     let player = players.get(entity);
-                    match player {
-                        None => defeated_entities.push(entity),
-                        Some(_) => {
-                            let player_name = names.get(entity).unwrap();
-                            console::log(&format!("Player {} has died!", player_name.name));
-                        }
+
+                    if let Some(_) = player {
+                        let player_name = names.get(entity).unwrap();
+                        console::log(&format!("Player {} has died!", player_name.name));
+                    }
+
+                    let monster_name = names.get(entity);
+
+                    if let Some(name) = monster_name {
+                        defeated_entities.push(entity);
+                        game_log.messages_push(&format!("{} has died", name.name));
                     }
                 }
             }
