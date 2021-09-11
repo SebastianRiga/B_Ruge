@@ -65,11 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Initial release which only shows the apps window in a simple hello world manner.
 
 [B_Ruge]: https://github.com/SebastianRiga/B_Ruge
-[0.2.7]: https://github.com/SebastianRiga/B_Ruge/releases
-[0.2.6]: https://github.com/olivierlacan/keep-a-changelog/compare/v0.0.5...v0.0.6
-[0.2.5]: https://github.com/olivierlacan/keep-a-changelog/compare/v0.0.4...v0.0.5
-[0.2.4]: https://github.com/olivierlacan/keep-a-changelog/compare/v0.0.3...v0.0.4
-[0.2.3]: https://github.com/olivierlacan/keep-a-changelog/compare/v0.0.2...v0.0.3
+[0.2.7]: https://github.com/SebastianRiga/B_Ruge/releases/tag/v0.2.7
+[0.2.6]: https://github.com/SebastianRiga/B_Ruge/releases/tag/v0.2.6
+[0.2.5]: https://github.com/SebastianRiga/B_Ruge/releases/tag/v0.2.5
+[0.2.4]: https://github.com/SebastianRiga/B_Ruge/releases/tag/v0.2.4
+[0.2.3]: https://github.com/SebastianRiga/B_Ruge/releases/tag/v0.2.3
 [0.2.2]: https://github.com/SebastianRiga/B_Ruge/releases/tag/v0.2.2
 [0.2.1]: https://github.com/SebastianRiga/B_Ruge/releases/tag/v0.2.1
 [0.1.0]: https://github.com/SebastianRiga/B_Ruge/releases/tag/v0.1.0
