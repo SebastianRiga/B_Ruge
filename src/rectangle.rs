@@ -15,6 +15,7 @@ use super::Position;
 ///                 |           |
 ///                 #-----------+ <-- (right, bottom)
 ///
+#[derive(Default, Debug, Clone)]
 pub struct Rectangle {
     /// Left x coordinate of the rectangle.
     pub left: i32,

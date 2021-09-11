@@ -2,7 +2,7 @@
 name = "b_ruge"
 version = "0.2.6"
 edition = "2018"
-description = "Shadowrun inspired dungeon crawler written in Rust"
+description = "D&D and NetHack inspired dungeon crawler written in rust."
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/SebastianRiga"
@@ -20,3 +20,5 @@ maintenance = { status = "actively-developed" }
 rltk = { version = "0.8.1" }
 specs = "0.17.0"
 specs-derive = "0.4.1"
+getrandom = { version = "0.2.3", features = ["js"] }
+chrono = { version = "0.4.19", features = ["wasmbind"] }

@@ -1,9 +1,8 @@
 //! Factory to create entities
 
-use rltk::RGB;
 use specs::prelude::*;
 
-use super::{Collision, Monster, Name, Player, Position, Renderable, Statistics, FOV};
+use super::{Collision, Monster, Name, Player, Position, Renderable, Statistics, FOV, swatch};
 
 /// Factory to create instances of all
 /// entities in the game.
@@ -18,6 +17,8 @@ impl EntityFactory {
     /// * `ecs`: The `ecs` through which the player should be created.
     ///
     pub fn new_player(position: &Position, ecs: &mut World) -> Entity {
+        let (fg, bg) = swatch::PLAYER.colors();
+
         ecs.create_entity()
             .with(Position {
                 x: position.x,
@@ -25,8 +26,8 @@ impl EntityFactory {
             })
             .with(Renderable {
                 symbol: rltk::to_cp437('@'),
-                fg: RGB::named(rltk::YELLOW),
-                bg: RGB::named(rltk::BLACK),
+                fg,
+                bg,
             })
             .with(Player {})
             .with(FOV {
@@ -55,6 +56,8 @@ impl EntityFactory {
     /// * `suffix`: Optinal suffix that can be added to the monsters name.
     ///
     pub fn new_goblin(position: &Position, ecs: &mut World, suffix: Option<String>) -> Entity {
+        let (fg, bg) = swatch::GOBLIN.colors();
+
         ecs.create_entity()
             .with(Position {
                 x: position.x,
@@ -62,8 +65,8 @@ impl EntityFactory {
             })
             .with(Renderable {
                 symbol: rltk::to_cp437('o'),
-                fg: RGB::from_u8(169, 169, 169),
-                bg: RGB::named(rltk::BLACK),
+                fg,
+                bg,
             })
             .with(FOV {
                 content: Vec::new(),
@@ -93,6 +96,8 @@ impl EntityFactory {
     /// * `suffix`: Optinal suffix that can be added to the monsters name.
     ///
     pub fn new_gremlin(position: &Position, ecs: &mut World, suffix: Option<String>) -> Entity {
+        let (fg, bg) = swatch::GREMLIN.colors();
+
         ecs.create_entity()
             .with(Position {
                 x: position.x,
@@ -100,8 +105,8 @@ impl EntityFactory {
             })
             .with(Renderable {
                 symbol: rltk::to_cp437('g'),
-                fg: RGB::from_u8(124, 252, 0),
-                bg: RGB::named(rltk::BLACK),
+                fg,
+                bg,
             })
             .with(FOV {
                 content: Vec::new(),
