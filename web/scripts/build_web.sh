@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# We exit on any error, since this script is also run in the ci/cd
+set -e
+
 echo "Adding wasm dependencies..."
 
 rustup target add wasm32-unknown-unknown
