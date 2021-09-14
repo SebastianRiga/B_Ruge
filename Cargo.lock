@@ -92,7 +92,6 @@ dependencies = [
  "rltk",
  "specs",
  "specs-derive",
- "wasm-bindgen",
 ]
 
 [[package]]

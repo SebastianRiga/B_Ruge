@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install prerequisites
+      run: sh ./web/scripts/init_web_assembly.sh
     - name: Build Web
       run: sh ./web/scripts/build_web.sh
     - name: Vercel Deployment
