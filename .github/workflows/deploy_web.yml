@@ -14,12 +14,6 @@ jobs:
 
     runs-on: ubuntu-latest
   
-    env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      VERCEL_GITHUB_TOKEN: ${{ secrets.VERCEL_GITHUB_TOKEN }}
-      VERCEL_DOMAIN: ${{ secrets.VERCEL_DOMAIN }}
     steps:
     - uses: actions/checkout@v2
     - name: Install prerequisites
@@ -27,12 +21,14 @@ jobs:
     - name: Build Web
       run: sh ./web/scripts/build_web.sh
     - name: Vercel Deployment
-      uses: xmflsct/action-vercel-deployment@v0.5.3
+      uses: amondnet/vercel-action@v20
       with:
-        vercelToken: ${{ env.VERCEL_TOKEN }}
-        vercelOrgId: ${{ env.VERCEL_ORG_ID }}
-        vercelProjectId: ${{ env.VERCEL_PROJECT_ID }}
-        githubToken: ${{ env.VERCEL_GITHUB_TOKEN }}
-        deploySource: "web/out"
-        deployProduction: true
-        assignDomain: ${{ env.VERCEL_DOMAIN }}
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        github-token: ${{ secrets.VERCEL_GITHUB_TOKEN }}
+        working-directory: "web/out"
+        vercel-args: "--prod"
+        scope: ${{ secrets.VERCEL_ORG_ID }}
+        github-comment: true
+        alias-domains: ${{ secrets.VERCEL_DOMAIN }}
