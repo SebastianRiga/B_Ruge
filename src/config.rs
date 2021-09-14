@@ -1,7 +1,9 @@
 //! Global game settings.
 
+use rltk::console;
+
 /// The current version of the game.
-pub const GAME_VERSION: &'static str = "v0.2.6";
+pub const GAME_VERSION: &'static str = "v0.2.7";
 
 /// The name of the game, needed for display on the
 /// window and in-game.
@@ -30,3 +32,28 @@ pub const MIN_ROOM_SIZE: i32 = 6;
 /// The maximum size of a room on
 /// the map.
 pub const MAX_ROOM_SIZE: i32 = 10;
+
+/// The maximum amount of
+pub const MAX_MONSTERS_PER_ROOM: i32 = 4;
+
+pub const MAX_ITEMS_PER_ROOM: i32 = 2;
+
+pub fn log_starting_message() {
+    let message = format!(
+        r#"
+             :::::::::            :::::::::  :::    :::  ::::::::  :::::::::: 
+             :+:    :+:           :+:    :+: :+:    :+: :+:    :+: :+:         
+            +:+    +:+           +:+    +:+ +:+    +:+ +:+        +:+          
+           +#++:++#+            +#++:++#:  +#+    +:+ :#:        +#++:++#      
+          +#+    +#+           +#+    +#+ +#+    +#+ +#+   +#+# +#+            
+         #+#    #+#           #+#    #+# #+#    #+# #+#    #+# #+#             
+        ######### ########## ###    ###  ########   ########  ##########   
+        
+        by Sebastian Riga (c) 2021
+        version: {}
+        "#,
+        GAME_VERSION
+    );
+
+    console::log(message);
+}

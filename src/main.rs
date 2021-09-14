@@ -5,9 +5,12 @@
 use rltk::{console, RltkBuilder};
 use specs::prelude::*;
 
-mod ui;
 mod config;
+mod entity_factory;
+mod rng;
+mod spawn_controller;
 mod swatch;
+mod ui_controller;
 
 mod state;
 pub use state::*;
@@ -19,16 +22,13 @@ mod player;
 pub use player::*;
 
 mod rectangle;
-pub use rectangle::Rectangle;
+pub use rectangle::*;
 
 mod map;
 pub use map::*;
 
 mod systems;
 pub use systems::*;
-
-mod entity_factory;
-pub use entity_factory::*;
 
 mod tile_factory;
 pub use tile_factory::*;
@@ -49,20 +49,7 @@ pub use scribbles::*;
 /// creates entities and starts the rendering. After the bootstrapping
 /// it calls the [rltk::main_loop] to display the game window.
 fn main() -> rltk::BError {
-    console::log(
-        r#"
-             :::::::::            :::::::::  :::    :::  ::::::::  :::::::::: 
-             :+:    :+:           :+:    :+: :+:    :+: :+:    :+: :+:         
-            +:+    +:+           +:+    +:+ +:+    +:+ +:+        +:+          
-           +#++:++#+            +#++:++#:  +#+    +:+ :#:        +#++:++#      
-          +#+    +#+           +#+    +#+ +#+    +#+ +#+   +#+# +#+            
-         #+#    #+#           #+#    #+# #+#    #+# #+#    #+# #+#             
-        ######### ########## ###    ###  ########   ########  ##########   
-        
-        by Sebastian Riga (c) 2021
-        version: 0.2.5
-        "#,
-    );
+    config::log_starting_message();
 
     // Create a new terminal
     let mut terminal = RltkBuilder::simple(config::WINDOW_WIDTH, config::WINDOW_HEIGHT)?
@@ -77,48 +64,26 @@ fn main() -> rltk::BError {
     // Create the initial game state
     let mut game_state = State { ecs: World::new() };
 
+    // Register random number generator
+    rng::register(&mut game_state.ecs);
+
     // Register components
-    game_state.ecs.register::<FOV>();
-    game_state.ecs.register::<Name>();
-    game_state.ecs.register::<Player>();
-    game_state.ecs.register::<Monster>();
-    game_state.ecs.register::<Position>();
-    game_state.ecs.register::<Collision>();
-    game_state.ecs.register::<Renderable>();
-    game_state.ecs.register::<Statistics>();
-    game_state.ecs.register::<MeleeAttack>();
-    game_state.ecs.register::<DamageCounter>();
+    register_components(&mut game_state.ecs);
 
     // Create the game map
-    let map = Map::new_map_with_rooms(config::MAP_WIDTH, config::MAP_HEIGHT);
-
-    // Get a new random number generator for monster placement
-    let mut rng = rltk::RandomNumberGenerator::new();
+    let map = Map::new(&mut game_state.ecs, config::MAP_WIDTH, config::MAP_HEIGHT);
 
     // Apply the monster creation to all rooms expect for the first.
     // The rng is used to choose a random monster to place
-    map.rooms_for_each_skip(1, |idx, room| match rng.roll_dice(1, 2) {
-        1 => {
-            EntityFactory::new_goblin(
-                &room.center(),
-                &mut game_state.ecs,
-                Option::from(format!("#{}", idx)),
-            );
-        }
-        _ => {
-            EntityFactory::new_gremlin(
-                &room.center(),
-                &mut game_state.ecs,
-                Option::from(format!("#{}", idx)),
-            );
-        }
+    map.rooms_for_each_skip(1, |_, room| {
+        spawn_controller::spawn_in_room(&mut game_state.ecs, room);
     });
 
     // The player is placed in the center of the first room
     let player_position = map.rooms[0].center();
 
     // Create the player
-    let player_entity = EntityFactory::new_player(&player_position, &mut game_state.ecs);
+    let player_entity = entity_factory::new_player(&player_position, &mut game_state.ecs);
 
     // Create the games message logger
     let game_log = GameLog::new();

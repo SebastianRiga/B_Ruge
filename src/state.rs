@@ -4,10 +4,11 @@ use rltk::{GameState, Rltk};
 use specs::prelude::*;
 
 use super::{
-    player_handle_input, DamageSystem, FOVSystem, Map, MapDexSystem, MeleeCombatSystem,
-    MonsterAI, Position, Renderable, ui
+    player_handle_input, ui_controller, DamageSystem, FOVSystem, Map, MapDexSystem,
+    MeleeCombatSystem, MonsterAI, Position, Renderable,
 };
-use crate::{DialogInterface, DialogResult};
+use crate::{DialogInterface, DialogResult, ItemCollectionSystem, PotionDrinkSystem};
+use std::any::Any;
 
 /// Struct describing the current state of the game
 /// and providing access to the underlying `ECS`
@@ -36,6 +37,12 @@ impl State {
         let mut damage_system = DamageSystem {};
         damage_system.run_now(&self.ecs);
 
+        let mut item_collection_system = ItemCollectionSystem {};
+        item_collection_system.run_now(&self.ecs);
+        
+        let mut potion_drink_system = PotionDrinkSystem {};
+        potion_drink_system.run_now(&self.ecs);
+
         self.ecs.maintain();
     }
 
@@ -57,15 +64,15 @@ impl State {
 
     /// Displays the ui of the game on the screen, this includes
     /// the map, message log, status information etc.
-    /// 
+    ///
     /// # Arguments
     /// * `ctx`: The context in which the ui should be drawn.
-    /// 
+    ///
     fn show_ui(&self, ctx: &mut Rltk) {
         let map = self.ecs.fetch::<Map>();
         map.draw(ctx);
-        
-        ui::draw_ui(&self.ecs, ctx);
+
+        ui_controller::draw_ui(&self.ecs, ctx);
 
         // Get all entities with [Position] and [Renderable]
         // attributes and render them on the screen.
@@ -85,9 +92,9 @@ impl State {
         }
     }
 
-    fn show_dialog(&self, ctx: &mut Rltk) -> DialogResult {
+    fn show_dialog(&self, ecs: &mut World, ctx: &mut Rltk) -> DialogResult {
         let dialog = self.ecs.write_resource::<DialogInterface>();
-        dialog.show(ctx)
+        dialog.show(ecs, ctx)
     }
 }
 
@@ -136,7 +143,7 @@ impl GameState for State {
 
         // If there is a dialog to display, show it and read the result
         if show_dialog {
-            if self.show_dialog(ctx) == DialogResult::Consumed {
+            if self.show_dialog(&mut self.ecs, ctx) == DialogResult::Consumed {
                 self.ecs.remove::<DialogInterface>();
                 next_processing_state = ProcessingState::Internal;
             }

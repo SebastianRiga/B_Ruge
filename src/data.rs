@@ -1,6 +1,8 @@
 //! Module for all pod structures
 
-use super::{config};
+use super::config;
+use chrono::Utc;
+use specs::prelude::*;
 
 /// Struct storing the games message stream.
 pub struct GameLog {
@@ -31,20 +33,20 @@ impl GameLog {
     }
 
     /// Pushes the passed `message` to the [GameLog]'s message stream.
-    /// 
+    ///
     /// # Arguments
     /// * `message`: The message to add to the stream.
-    /// 
+    ///
     pub fn messages_push(&mut self, message: &str) {
         self.messages.push(message.to_string());
     }
 
     /// Removes the passed `message` from the [GameLog]'s message
     /// stream.
-    /// 
+    ///
     /// # Arguments
     /// * `message`: The `message` to remove.
-    /// 
+    ///
     pub fn messages_remove(&mut self, message: &String) {
         self.messages.retain(|element| element != message);
     }
@@ -56,10 +58,10 @@ impl GameLog {
 
     /// Iterates through all messages in the [GameLog]'s stream
     /// and executes the passed `block` with them.
-    /// 
+    ///
     /// # Arguments
     /// * `block`: The lambda to execute for each message.
-    /// 
+    ///
     pub fn messages_for_each_rev<F>(&mut self, mut block: F)
     where
         F: FnMut(&mut String),
@@ -94,16 +96,16 @@ impl PlayerPathing {
 
     /// Overrides the current pathing [Vec] with the new
     /// information from the passed `steps` vec.
-    /// 
+    ///
     /// # Arguments
     /// * `steps`: The new pathing information.
-    /// 
+    ///
     pub fn update(&mut self, steps: &mut Vec<usize>) {
         self.steps.clear();
         self.steps.append(steps);
     }
 
-    /// Removes all pathing information from the 
+    /// Removes all pathing information from the
     /// [PlayerPathing]'s struct [Vec].
     pub fn clear(&mut self) {
         self.steps.clear();

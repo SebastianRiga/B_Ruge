@@ -2,10 +2,10 @@
 
 use std::cmp::{max, min};
 
-use rltk::{console, Algorithm2D, BaseMap, Point, RandomNumberGenerator, Rltk, SmallVec};
-use specs::prelude::Entity;
+use rltk::{console, Algorithm2D, BaseMap, Point, Rltk, SmallVec};
+use specs::prelude::*;
 
-use super::{pythagoras_distance, Rectangle, TileFactory, config};
+use super::{config, pythagoras_distance, rng, Rectangle, TileFactory};
 
 /// Enum describing all available tile
 /// types of the game.
@@ -61,59 +61,6 @@ impl Map {
     /// Creates a new map with the given `width`
     /// and `height`.
     ///
-    /// All outer coordinates and random positions
-    /// on the map are filled with walls.
-    ///
-    /// # Arguments
-    /// * `width`: The width of the new map.
-    /// * `height`: The height of the new map.
-    ///
-    /// # Note
-    /// Only use this function for testing.
-    ///
-    pub fn new_map_test(width: i32, height: i32) -> Self {
-        let mut map = Map {
-            width,
-            height,
-            tiles: vec![TileType::FLOOR; width as usize * height as usize],
-            rooms: Vec::new(),
-            explored_tiles: vec![false; width as usize * height as usize],
-            tiles_in_fov: vec![false; width as usize * height as usize],
-            blocked_tiles: vec![false; width as usize * height as usize],
-            tile_contents: vec![Vec::new(); width as usize * height as usize],
-        };
-
-        // Create outer vertical walls
-        for x in 0..map.width {
-            map.set_tile(x, 0, TileType::WALL);
-            map.set_tile(x, map.max_y(), TileType::WALL);
-        }
-
-        // Create outer horizontal walls
-        for y in 0..map.height {
-            map.set_tile(0, y, TileType::WALL);
-            map.set_tile(map.max_x(), y, TileType::WALL);
-        }
-
-        // Create a random number generator
-        let mut rng = RandomNumberGenerator::new();
-
-        // Create random walls on the map
-        for _ in 0..400 {
-            let x = rng.roll_dice(1, map.max_x());
-            let y = rng.roll_dice(1, map.max_y());
-
-            if (x, y) != (40, 25) {
-                map.set_tile(x, y, TileType::WALL);
-            }
-        }
-
-        map
-    }
-
-    /// Creates a new map with the given `width`
-    /// and `height`.
-    ///
     /// Adds rooms of random width and height
     /// at random positions to the map. Rooms
     /// are connected through vertical and
@@ -126,7 +73,7 @@ impl Map {
     /// * `width`: The width of the new map.
     /// * `height`: The height of the new map.
     ///
-    pub fn new_map_with_rooms(width: i32, height: i32) -> Self {
+    pub fn new(ecs: &mut World, width: i32, height: i32) -> Self {
         // Create the base map struct
         let mut map = Map {
             width,
@@ -139,18 +86,15 @@ impl Map {
             tile_contents: vec![Vec::new(); width as usize * height as usize],
         };
 
-        // Create a random number generator
-        let mut rng = RandomNumberGenerator::new();
-
         // Create as many rooms as defined in the [GAME_CONFIG]
         for _ in 0..config::MAX_ROOMS {
             // Calc the [Rectangle] width and height args
-            let room_width = rng.range(config::MIN_ROOM_SIZE, config::MAX_ROOM_SIZE);
-            let room_height = rng.range(config::MIN_ROOM_SIZE, config::MAX_ROOM_SIZE);
+            let room_width = rng::range(ecs, config::MIN_ROOM_SIZE, config::MAX_ROOM_SIZE);
+            let room_height = rng::range(ecs, config::MIN_ROOM_SIZE, config::MAX_ROOM_SIZE);
 
             // Calc the x and y position of the top left corner of the [Rectangle].
-            let x = rng.roll_dice(1, width - room_width - 1) - 1;
-            let y = rng.roll_dice(1, height - room_height - 1) - 1;
+            let x = rng::roll_dice(ecs, 1, width - room_width - 1) - 1;
+            let y = rng::roll_dice(ecs, 1, height - room_height - 1) - 1;
 
             // Create the new room
             let room = Rectangle::new(x, y, room_width, room_height);
@@ -174,7 +118,7 @@ impl Map {
                     let new_room_center = room.center();
                     let previous_room_center = map.rooms[map.rooms.len() - 1].center();
 
-                    if rng.range(0, 2) == 1 {
+                    if rng::range(ecs, 0, 2) == 1 {
                         map.draw_horizontal_intersection(
                             previous_room_center.x,
                             new_room_center.x,
@@ -462,14 +406,14 @@ impl Map {
     /// Returns `true` if the passed `x` and `y`
     /// coordinate are contained in the [Map].
     /// Otherwise `false` is returned.
-    /// 
+    ///
     /// # Arguments
     /// * `x`: The x coordinate of the tile to check.
     /// * `y`: The y coordinate of the tile to check.
-    /// 
+    ///
     /// # See also
     /// * [Map::check_idx_result]: Used to check the index.
-    /// 
+    ///
     pub fn check_idx(&self, x: i32, y: i32) -> bool {
         if let Ok(_) = self.check_idx_result(x, y) {
             return true;

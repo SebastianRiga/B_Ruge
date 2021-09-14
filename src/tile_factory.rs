@@ -1,6 +1,6 @@
 //! Factory to create entityless tiles
 
-use super::{Renderable, swatch};
+use super::{swatch, Renderable};
 
 /// Factory to produce basic tile
 /// renderables, which are not entities.

@@ -1,14 +1,15 @@
 //! Module containing all systems of the game
 
-use rltk::{a_star_search, console, field_of_view, Point};
+use rltk::{a_star_search, console, field_of_view, Point, VirtualKeyCode, Rltk};
 use specs::prelude::*;
 
-use crate::{DamageCounter, Statistics};
+use crate::{DamageCounter, DialogInterface, DialogOption, Loot, Pickup, Statistics, Potion, UsePotion};
 
 use super::{
     pythagoras_distance, Collision, GameLog, Map, MeleeAttack, Monster, Name, Player, Position,
     ProcessingState, FOV,
 };
+use std::sync::Arc;
 
 /// System that handles the field of view
 /// processing. See the implementation below
@@ -239,6 +240,7 @@ impl DamageSystem {
     ///
     pub fn clean_up(ecs: &mut World) {
         let mut defeated_entities: Vec<Entity> = Vec::new();
+        let mut player_died = false;
 
         {
             let entities = ecs.entities();
@@ -254,6 +256,7 @@ impl DamageSystem {
                     if let Some(_) = player {
                         let player_name = names.get(entity).unwrap();
                         console::log(&format!("Player {} has died!", player_name.name));
+                        player_died = true;
                     }
 
                     let monster_name = names.get(entity);
@@ -264,6 +267,21 @@ impl DamageSystem {
                     }
                 }
             }
+        }
+
+        if player_died {
+            DialogInterface::register_dialog(
+                ecs,
+                "An untimely end".to_string(),
+                "You have died while exploring the dungeon! Restart the game and try again."
+                    .to_string(),
+                &[DialogOption {
+                    description: "Quit the game".to_string(),
+                    key: VirtualKeyCode::Q,
+                    callback: Arc::new(|_, ctx: &mut Rltk| ctx.quit())
+                }],
+                false,
+            )
         }
 
         ecs.delete_entities(&defeated_entities)
@@ -285,5 +303,73 @@ impl<'a> System<'a> for DamageSystem {
         }
 
         damage_counters.clear();
+    }
+}
+
+pub struct ItemCollectionSystem {}
+
+impl<'a> System<'a> for ItemCollectionSystem {
+    type SystemData = (
+        WriteExpect<'a, GameLog>,
+        ReadStorage<'a, Name>,
+        WriteStorage<'a, Pickup>,
+        WriteStorage<'a, Position>,
+        WriteStorage<'a, Loot>,
+    );
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (mut game_log, names, mut pickups, mut positions, mut backpack) = data;
+
+        for pickup in pickups.join() {
+            positions.remove(pickup.item);
+
+            let loot = Loot {
+                owner: pickup.collector,
+            };
+
+            backpack
+                .insert(pickup.item, loot)
+                .expect("Unable to insert collectable into backpack!");
+
+            let collector_name = names.get(pickup.collector).unwrap();
+            let item_name = names.get(pickup.item).unwrap();
+            let message = format!("{} picked up {}.", collector_name.name, item_name.name);
+
+            game_log.messages_push(&message);
+        }
+
+        pickups.clear();
+    }
+}
+
+pub struct PotionDrinkSystem {}
+
+impl<'a> System<'a> for PotionDrinkSystem {
+    type SystemData = (
+        Entities<'a>,
+        WriteExpect<'a, GameLog>,
+        ReadStorage<'a, Name>,
+        ReadStorage<'a, Potion>,
+        WriteStorage<'a, UsePotion>,
+        WriteStorage<'a, Statistics>,
+    );
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (entities, mut game_log, names, potions, mut use_potion, mut statistics) = data;
+    
+        for (entity, usage, statistic) in (&entities, &use_potion, &mut statistics).join() {
+            let potion_name = names.get(usage.potion).unwrap();
+            let user_name = names.get(entity).unwrap();
+            let potion = potions.get(usage.potion);
+            
+            if let Some(potion) = potion {
+                statistic.hp = i32::min(statistic.hp_max, statistic.hp + potion.healing_amount);
+                
+                let message = format!("{} drinks the {}, restoring {} health.", user_name.name, potion_name.name, potion.healing_amount);
+                game_log.messages_push(&message);
+                
+                entities.delete(usage.potion).expect(&format!("Unable to delete potion with entity id {} after usage.", usage.potion.id()));
+            }
+        }
     }
 }

@@ -3,7 +3,8 @@
 use rltk::{Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
-use super::{virtual_key_code_to_string, config};
+use super::{config, virtual_key_code_to_string};
+use std::sync::Arc;
 
 /// Enum describing all the results
 /// a [DialogInterface] can return when it is shown.
@@ -21,7 +22,7 @@ pub enum DialogResult {
 /// An option the player can select
 /// on a [DialogInterface].
 #[derive(Clone)]
-pub struct DialogOption {
+pub struct DialogOption<'a> {
     /// Description of the option, e.g. 'Yes', 'Leave', etc.
     pub description: String,
 
@@ -31,14 +32,24 @@ pub struct DialogOption {
 
     /// The callback function which is invoked when
     /// the player selects the option.
-    pub callback: fn(&mut Rltk),
+    pub callback: Arc<dyn FnMut(&'a mut World, &mut Rltk) + Send + Sync>,
+}
+
+impl<'a> DialogOption<'a> {
+    pub fn create_cancel_option() -> DialogOption<'a> {
+        DialogOption {
+            description: "Dismiss".to_string(),
+            key: VirtualKeyCode::Escape,
+            callback: Arc::new(|_, _| ()),
+        }
+    }
 }
 
 /// A generic interface providing access to
 /// dialog functionality, which can be displayed
 /// at any part of the game for selection purposes
 /// or menuing.
-pub struct DialogInterface {
+pub struct DialogInterface<'a> {
     /// Title of the [DialogInterface].
     pub title: String,
 
@@ -47,14 +58,14 @@ pub struct DialogInterface {
 
     /// Vector of options the player can
     /// select through the [DialogInterface].
-    pub options: Vec<DialogOption>,
+    pub options: Vec<DialogOption<'a>>,
 
     /// Restrict access for creation to member
     /// functions.
     _private: (),
 }
 
-impl DialogInterface {
+impl<'a> DialogInterface<'a> {
     /// Registers a new dialog with the ecs, which
     /// will be shown during the next tick of the
     /// game.
@@ -71,14 +82,20 @@ impl DialogInterface {
         title: String,
         message: String,
         options: &[DialogOption],
+        cancelable: bool,
     ) {
         // Create the new dialog
-        let dialog = DialogInterface {
+        let mut dialog = DialogInterface {
             title,
             message,
             options: options.to_vec(),
             _private: (),
         };
+
+        if cancelable {
+            let cancel_option = DialogOption::create_cancel_option();
+            dialog.options.push(cancel_option);
+        }
 
         // If a dialog is already stored in the
         // ecs, remove it.
@@ -95,12 +112,12 @@ impl DialogInterface {
     /// # Arguments
     /// * `terminal`: Reference to the terminal on which the dialog should be drawn.
     ///
-    pub fn show(&self, terminal: &mut Rltk) -> DialogResult {
+    pub fn show(&self, ecs: &mut World, terminal: &mut Rltk) -> DialogResult {
         // Calculate the width and height for the dialog
 
         let width = (config::MAP_WIDTH as f32 / 2.5) as i32;
         let mut height = (self.message.len() as f32 / width as f32).ceil() as i32;
-        height += (self.options.len() * 2) as i32 + 4;
+        height += (self.options.len() * 2) as i32 + 3;
 
         // Calculate the x and y coordinate for the dialog
 
@@ -112,7 +129,7 @@ impl DialogInterface {
         let message_chunks = self
             .message
             .as_bytes()
-            .chunks((width - 2) as usize)
+            .chunks((width - 3) as usize)
             .map(|buffer| unsafe { String::from_utf8_unchecked(buffer.to_vec()) })
             .collect::<Vec<String>>();
 
@@ -124,7 +141,7 @@ impl DialogInterface {
             width,
             height,
             RGB::named(rltk::WHITE),
-            RGB::named(rltk::BLUE),
+            RGB::named(rltk::DARK_GOLDENROD),
         );
 
         // Draw the dialog's title
@@ -133,10 +150,10 @@ impl DialogInterface {
 
         // Draw the message
 
-        let mut y_position = y + 1;
+        let mut y_position = y + 2;
 
         for chunk in message_chunks {
-            terminal.print(x + 1, y_position, chunk);
+            terminal.print(x + 2, y_position, chunk);
             y_position += 1;
         }
 
@@ -147,7 +164,7 @@ impl DialogInterface {
         for option in self.options.iter() {
             let key_string = virtual_key_code_to_string(option.key);
             terminal.print_color(
-                x + 1,
+                x + 2,
                 y_position,
                 RGB::named(rltk::YELLOW),
                 RGB::named(rltk::BLACK),
@@ -156,25 +173,13 @@ impl DialogInterface {
             y_position += 2;
         }
 
-        terminal.print_color(
-            x + 1,
-            y_position,
-            RGB::named(rltk::YELLOW),
-            RGB::named(rltk::BLACK),
-            "ESCAPE - Cancel",
-        );
-
         // Listen for key press event
 
         if let Some(key) = terminal.key {
-            if key == VirtualKeyCode::Escape {
-                return DialogResult::Consumed;
-            }
-
             let selection = self.options.iter().find(|element| element.key == key);
 
             if let Some(selection) = selection {
-                (selection.callback)(terminal);
+                (selection.callback)(ecs, terminal);
                 return DialogResult::Consumed;
             }
         }
