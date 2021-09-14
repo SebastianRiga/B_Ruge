@@ -20,3 +20,26 @@ jobs:
       run: cargo build --verbose
     - name: Build Web
       run: sh sh ./web/scripts/build_web.sh
+    - name: Vercel Deployment
+      # You may pin to the exact commit or the version.
+      # uses: xmflsct/action-vercel-deployment@dfd18ea029d56a90ce06c154cb40de413840f151
+      uses: xmflsct/action-vercel-deployment@v0.5.3
+      with:
+        # Your token at Vercel. See https://vercel.com/account/tokens
+        vercelToken: 
+        # Your Organization ID at Vercel.
+        vercelOrgId: 
+        # Your Project ID at Vercel.
+        vercelProjectId: 
+        # Your token at GitHub. See https://github.com/settings/tokens
+        githubToken: 
+        # If you would like to build through GitHub Actions inatead of Vercel.
+        buildOption: # optional
+        # If building through GitHub Actions, a source directory may be supplied.
+        buildSource: # optional, default is 
+        # If building through GitHub Actiosn, an output directory may be supplied.
+        deploySource: # optional, default is 
+        # If this deployment is targeted as production.
+        deployProduction: # optional
+        # You can assign a domain to this deployment. Please note that this domain must have been configured in the project.
+        assignDomain: # optional
