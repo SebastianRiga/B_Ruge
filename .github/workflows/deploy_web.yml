@@ -21,10 +21,10 @@ jobs:
     - name: Vercel Deployment
       uses: xmflsct/action-vercel-deployment@v0.5.3
       with:
-        vercelToken: ${{ secrets.vercel_token }}
-        vercelOrgId: ${{ secrets.vercel_team }}
-        vercelProjectId: ${{ secrets.vercel_project-id }}
-        githubToken: ${{ secrets.vercel_github_token }}
-        sourceDirectory: "web/out"
+        vercelToken: ${{ secrets.VERCEL_TOKEN }}
+        vercelOrgId: ${{ secrets.VERCEL_TEAM }}
+        vercelProjectId: ${{ secrets.VERCEL_PROJECT_ID }}
+        githubToken: ${{ secrets.VERCEL_GITHUB_TOKEN }}
+        deploySource: "web/out"
         deployProduction: true
-        assignDomain: ${{ secrets.vercel_domain }}
+        assignDomain: ${{ secrets.VERCEL_DOMAIN }}
