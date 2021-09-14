@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# We exit on any error, since this script is also run in the ci/cd
+set -e
+
 echo "Building project for wasm32-unknown-unknown target to prepare web assembly..."
 
 cargo build --release --target wasm32-unknown-unknown 
