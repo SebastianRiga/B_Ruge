@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  deploy:
+  deploy-web:
 
     runs-on: ubuntu-latest
 
@@ -24,7 +24,7 @@ jobs:
       uses: xmflsct/action-vercel-deployment@v0.5.3
       with:
         vercelToken: ${{ secrets.VERCEL_TOKEN }}
-        vercelOrgId: ${{ secrets.VERCEL_TEAM }}
+        vercelOrgId: ${{ secrets.VERCEL_ORG_ID }}
         vercelProjectId: ${{ secrets.VERCEL_PROJECT_ID }}
         githubToken: ${{ secrets.VERCEL_GITHUB_TOKEN }}
         deploySource: "web/out"
