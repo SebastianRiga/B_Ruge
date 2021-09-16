@@ -28,4 +28,3 @@ jobs:
           working-directory: "web/out"
           scope: ${{ secrets.VERCEL_ORG_ID }}
           github-comment: true
-          alias-domains: ${{ secrets.VERCEL_DOMAIN }}
