@@ -4,15 +4,14 @@ use std::cmp::{max, min};
 
 use rltk::{a_star_search, Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
+use specs::shred::Fetch;
 
 use crate::{DialogInterface, DialogOption, Loot, Name, UsePotion};
 
 use super::{
-    config, Map, MeleeAttack, Player, PlayerPathing, Position, ProcessingState, State, Statistics,
-    FOV, Item, i32_to_alpha_key
+    config, i32_to_alpha_key, Item, Map, MeleeAttack, Player, PlayerPathing, Position,
+    ProcessingState, State, Statistics, FOV,
 };
-use specs::shred::Fetch;
-use std::sync::Arc;
 
 /// Moves the [Player] entity through its stored [Position]
 /// in the `ecs` by adding the `delta_x` and `delta_y` to it.
@@ -126,44 +125,46 @@ fn pick_up_item(ecs: &mut World) {
         let player_entity = get_player_entity(&ecs);
         player = *player_entity;
     }
-    
+
     Item::pick_up(ecs, player);
 }
 
 fn show_inventory(ecs: &mut World) {
     let mut options: Vec<DialogOption> = Vec::new();
-    
+
     {
         let entities = ecs.entities();
         let player = get_player_entity(&ecs);
         let names = ecs.read_storage::<Name>();
         let backpack = ecs.read_storage::<Loot>();
-        
+
         let mut counter = 0;
-        for (entity, _, name) in (&entities, &backpack, &names).join().filter(|item| item.1.owner == *player) {
-            {
-                options.push(
-                    DialogOption {
-                        description: name.name.to_string(),
-                        key: i32_to_alpha_key(counter),
-                        callback: Arc::new(|ecs: &mut World, ctx: &mut Rltk| {
-                            let mut usage_intent = ecs.write_storage::<UsePotion>();
 
-                            let usage = UsePotion {
-                                potion: entity
-                            };
+        for (entity, _, name) in (&entities, &backpack, &names)
+            .join()
+            .filter(|item| item.1.owner == *player)
+        {
+            options.push(DialogOption {
+                description: name.name.to_string(),
+                key: i32_to_alpha_key(counter),
+                args: vec![Box::new(entity), Box::new(*player)],
+                callback: Box::new(|world, _, args| {
+                    let mut usage_intent = world.write_storage::<UsePotion>();
 
-                            usage_intent.insert(*player, usage).expect("Insert failed!");
-                        }),
-                    }
-                );
-            }
-            
+                    let item = *args[0].downcast_ref::<Entity>().unwrap();
+                    let player = *args[1].downcast_ref::<Entity>().unwrap();
+
+                    let usage = UsePotion { potion: item };
+
+                    usage_intent.insert(player, usage).expect("");
+                }),
+            });
+
             counter += 1;
         }
     }
-    
-    DialogInterface::register_dialog(ecs, "Inventory".to_string(), "".to_string(), &options, true);
+
+    DialogInterface::register_dialog(ecs, "Inventory".to_string(), "".to_string(), options, true);
 }
 
 fn get_player_entity(ecs: &World) -> Fetch<Entity> {
@@ -214,9 +215,9 @@ pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> Processing
             VirtualKeyCode::Numpad1 | VirtualKeyCode::Y => player_move(-1, 1, &mut game_state.ecs),
 
             VirtualKeyCode::Numpad3 | VirtualKeyCode::X => player_move(1, 1, &mut game_state.ecs),
-            
+
             VirtualKeyCode::G => pick_up_item(&mut game_state.ecs),
-            
+
             VirtualKeyCode::I => show_inventory(&mut game_state.ecs),
 
             VirtualKeyCode::Escape => {
@@ -224,21 +225,24 @@ pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> Processing
                     &mut game_state.ecs,
                     "Pause".to_string(),
                     "What would you like to do in this moment of respite?".to_string(),
-                    &[
+                    vec![
                         DialogOption {
                             description: "Save".to_string(),
                             key: VirtualKeyCode::S,
-                            callback: Arc::new(|_, ctx: &mut Rltk| ctx.quit()),
+                            args: vec![],
+                            callback: Box::new(|_, ctx, _| ctx.quit()),
                         },
                         DialogOption {
                             description: "Load".to_string(),
                             key: VirtualKeyCode::L,
-                            callback: Arc::new(|_, ctx: &mut Rltk| ctx.quit()),
+                            args: vec![],
+                            callback: Box::new(|_, ctx, _| ctx.quit()),
                         },
                         DialogOption {
                             description: "Quit".to_string(),
                             key: VirtualKeyCode::Q,
-                            callback: Arc::new(|_, ctx: &mut Rltk| ctx.quit()),
+                            args: vec![],
+                            callback: Box::new(|_, ctx, _| ctx.quit()),
                         },
                     ],
                     true,

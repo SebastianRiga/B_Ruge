@@ -4,11 +4,10 @@ use rltk::{GameState, Rltk};
 use specs::prelude::*;
 
 use super::{
-    player_handle_input, ui_controller, DamageSystem, FOVSystem, Map, MapDexSystem,
-    MeleeCombatSystem, MonsterAI, Position, Renderable,
+    player_handle_input, ui_controller, DamageSystem, DialogInterface, DialogResult, FOVSystem,
+    ItemCollectionSystem, Map, MapDexSystem, MeleeCombatSystem, MonsterAI, Position,
+    PotionDrinkSystem, Renderable,
 };
-use crate::{DialogInterface, DialogResult, ItemCollectionSystem, PotionDrinkSystem};
-use std::any::Any;
 
 /// Struct describing the current state of the game
 /// and providing access to the underlying `ECS`
@@ -39,7 +38,7 @@ impl State {
 
         let mut item_collection_system = ItemCollectionSystem {};
         item_collection_system.run_now(&self.ecs);
-        
+
         let mut potion_drink_system = PotionDrinkSystem {};
         potion_drink_system.run_now(&self.ecs);
 
@@ -92,9 +91,9 @@ impl State {
         }
     }
 
-    fn show_dialog(&self, ecs: &mut World, ctx: &mut Rltk) -> DialogResult {
-        let dialog = self.ecs.write_resource::<DialogInterface>();
-        dialog.show(ecs, ctx)
+    fn show_dialog(&mut self, ctx: &mut Rltk) -> DialogResult {
+        let mut dialog = self.ecs.fetch_mut::<DialogInterface>();
+        dialog.show(&self.ecs, ctx)
     }
 }
 
@@ -117,10 +116,12 @@ impl GameState for State {
         match next_processing_state {
             ProcessingState::Dialog => {
                 self.run_systems();
+                self.ecs.maintain();
                 show_dialog = true;
             }
             ProcessingState::Internal => {
                 self.run_systems();
+                self.ecs.maintain();
                 next_processing_state = ProcessingState::WaitingForInput;
             }
             ProcessingState::WaitingForInput => {
@@ -128,10 +129,12 @@ impl GameState for State {
             }
             ProcessingState::PlayerTurn => {
                 self.run_systems();
+                self.ecs.maintain();
                 next_processing_state = ProcessingState::MonsterTurn;
             }
             ProcessingState::MonsterTurn => {
                 self.run_systems();
+                self.ecs.maintain();
                 next_processing_state = ProcessingState::Internal;
             }
         }
@@ -143,7 +146,7 @@ impl GameState for State {
 
         // If there is a dialog to display, show it and read the result
         if show_dialog {
-            if self.show_dialog(&mut self.ecs, ctx) == DialogResult::Consumed {
+            if self.show_dialog(ctx) == DialogResult::Consumed {
                 self.ecs.remove::<DialogInterface>();
                 next_processing_state = ProcessingState::Internal;
             }

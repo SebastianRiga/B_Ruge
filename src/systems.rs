@@ -1,15 +1,16 @@
 //! Module containing all systems of the game
 
-use rltk::{a_star_search, console, field_of_view, Point, VirtualKeyCode, Rltk};
+use rltk::{a_star_search, console, field_of_view, Point, VirtualKeyCode};
 use specs::prelude::*;
 
-use crate::{DamageCounter, DialogInterface, DialogOption, Loot, Pickup, Statistics, Potion, UsePotion};
+use crate::{
+    DamageCounter, DialogInterface, DialogOption, Loot, Pickup, Potion, Statistics, UsePotion,
+};
 
 use super::{
     pythagoras_distance, Collision, GameLog, Map, MeleeAttack, Monster, Name, Player, Position,
     ProcessingState, FOV,
 };
-use std::sync::Arc;
 
 /// System that handles the field of view
 /// processing. See the implementation below
@@ -275,10 +276,11 @@ impl DamageSystem {
                 "An untimely end".to_string(),
                 "You have died while exploring the dungeon! Restart the game and try again."
                     .to_string(),
-                &[DialogOption {
+                vec![DialogOption {
                     description: "Quit the game".to_string(),
                     key: VirtualKeyCode::Q,
-                    callback: Arc::new(|_, ctx: &mut Rltk| ctx.quit())
+                    args: vec![],
+                    callback: Box::new(|_, ctx, _| ctx.quit()),
                 }],
                 false,
             )
@@ -356,20 +358,30 @@ impl<'a> System<'a> for PotionDrinkSystem {
 
     fn run(&mut self, data: Self::SystemData) {
         let (entities, mut game_log, names, potions, mut use_potion, mut statistics) = data;
-    
+
         for (entity, usage, statistic) in (&entities, &use_potion, &mut statistics).join() {
-            let potion_name = names.get(usage.potion).unwrap();
-            let user_name = names.get(entity).unwrap();
+            let potion_name = names.get(usage.potion);
+            let user_name = names.get(entity);
             let potion = potions.get(usage.potion);
-            
+
             if let Some(potion) = potion {
                 statistic.hp = i32::min(statistic.hp_max, statistic.hp + potion.healing_amount);
-                
-                let message = format!("{} drinks the {}, restoring {} health.", user_name.name, potion_name.name, potion.healing_amount);
+
+                let message = format!(
+                    "{} drinks the {}, restoring {} health.",
+                    user_name.unwrap().name,
+                    potion_name.unwrap().name,
+                    potion.healing_amount
+                );
                 game_log.messages_push(&message);
-                
-                entities.delete(usage.potion).expect(&format!("Unable to delete potion with entity id {} after usage.", usage.potion.id()));
+
+                entities.delete(usage.potion).expect(&format!(
+                    "Unable to delete potion with entity id {} after usage.",
+                    usage.potion.id()
+                ));
             }
         }
+
+        use_potion.clear();
     }
 }

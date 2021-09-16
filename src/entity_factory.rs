@@ -3,7 +3,7 @@
 use specs::prelude::*;
 
 use super::{
-    rng, swatch, Collision, Potion, Item, Monster, Name, Player, Position, Renderable, Statistics,
+    rng, swatch, Collision, Item, Monster, Name, Player, Position, Potion, Renderable, Statistics,
     FOV,
 };
 

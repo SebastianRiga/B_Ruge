@@ -1,8 +1,6 @@
 //! Module for all pod structures
 
 use super::config;
-use chrono::Utc;
-use specs::prelude::*;
 
 /// Struct storing the games message stream.
 pub struct GameLog {

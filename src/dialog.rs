@@ -4,7 +4,7 @@ use rltk::{Rltk, VirtualKeyCode, RGB};
 use specs::prelude::*;
 
 use super::{config, virtual_key_code_to_string};
-use std::sync::Arc;
+use std::any::Any;
 
 /// Enum describing all the results
 /// a [DialogInterface] can return when it is shown.
@@ -21,8 +21,7 @@ pub enum DialogResult {
 
 /// An option the player can select
 /// on a [DialogInterface].
-#[derive(Clone)]
-pub struct DialogOption<'a> {
+pub struct DialogOption {
     /// Description of the option, e.g. 'Yes', 'Leave', etc.
     pub description: String,
 
@@ -30,17 +29,20 @@ pub struct DialogOption<'a> {
     /// select the option.
     pub key: VirtualKeyCode,
 
+    pub args: Vec<Box<dyn Any + Send + Sync>>,
+
     /// The callback function which is invoked when
     /// the player selects the option.
-    pub callback: Arc<dyn FnMut(&'a mut World, &mut Rltk) + Send + Sync>,
+    pub callback: Box<fn(&World, &mut Rltk, args: &Vec<Box<dyn Any + Send + Sync>>)>,
 }
 
-impl<'a> DialogOption<'a> {
-    pub fn create_cancel_option() -> DialogOption<'a> {
+impl DialogOption {
+    pub fn create_cancel_option() -> DialogOption {
         DialogOption {
             description: "Dismiss".to_string(),
             key: VirtualKeyCode::Escape,
-            callback: Arc::new(|_, _| ()),
+            args: Vec::new(),
+            callback: Box::new(|_, _, _| ()),
         }
     }
 }
@@ -49,7 +51,7 @@ impl<'a> DialogOption<'a> {
 /// dialog functionality, which can be displayed
 /// at any part of the game for selection purposes
 /// or menuing.
-pub struct DialogInterface<'a> {
+pub struct DialogInterface {
     /// Title of the [DialogInterface].
     pub title: String,
 
@@ -58,14 +60,14 @@ pub struct DialogInterface<'a> {
 
     /// Vector of options the player can
     /// select through the [DialogInterface].
-    pub options: Vec<DialogOption<'a>>,
+    pub options: Vec<DialogOption>,
 
     /// Restrict access for creation to member
     /// functions.
     _private: (),
 }
 
-impl<'a> DialogInterface<'a> {
+impl DialogInterface {
     /// Registers a new dialog with the ecs, which
     /// will be shown during the next tick of the
     /// game.
@@ -81,14 +83,14 @@ impl<'a> DialogInterface<'a> {
         ecs: &mut World,
         title: String,
         message: String,
-        options: &[DialogOption],
+        options: Vec<DialogOption>,
         cancelable: bool,
     ) {
         // Create the new dialog
         let mut dialog = DialogInterface {
             title,
             message,
-            options: options.to_vec(),
+            options,
             _private: (),
         };
 
@@ -112,7 +114,7 @@ impl<'a> DialogInterface<'a> {
     /// # Arguments
     /// * `terminal`: Reference to the terminal on which the dialog should be drawn.
     ///
-    pub fn show(&self, ecs: &mut World, terminal: &mut Rltk) -> DialogResult {
+    pub fn show(&mut self, ecs: &World, terminal: &mut Rltk) -> DialogResult {
         // Calculate the width and height for the dialog
 
         let width = (config::MAP_WIDTH as f32 / 2.5) as i32;
@@ -176,10 +178,10 @@ impl<'a> DialogInterface<'a> {
         // Listen for key press event
 
         if let Some(key) = terminal.key {
-            let selection = self.options.iter().find(|element| element.key == key);
+            let selection = self.options.iter_mut().find(|element| element.key == key);
 
-            if let Some(selection) = selection {
-                (selection.callback)(ecs, terminal);
+            if let Some(option) = selection {
+                (option.callback)(ecs, terminal, &option.args);
                 return DialogResult::Consumed;
             }
         }

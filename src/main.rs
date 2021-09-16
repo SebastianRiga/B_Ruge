@@ -2,7 +2,7 @@
 
 //! D&D and NetHack inspired dungeon crawler written in rust.
 
-use rltk::{console, RltkBuilder};
+use rltk::RltkBuilder;
 use specs::prelude::*;
 
 mod config;

@@ -1,6 +1,6 @@
 //! Module for spawning monsters, items and general entities.
 
-use super::{config, entity_factory, rng, Map, Position, Rectangle};
+use super::{config, entity_factory, rng, Position, Rectangle};
 use specs::prelude::*;
 
 pub fn spawn_in_room(ecs: &mut World, room: &Rectangle) {

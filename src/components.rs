@@ -4,7 +4,7 @@ use rltk::{FontCharType, Point, RGB};
 use specs::prelude::*;
 use specs_derive::*;
 
-use super::{GameLog};
+use super::GameLog;
 
 /// Component to describe the position
 /// of a game entity in the game.
@@ -230,14 +230,14 @@ impl Item {
         let names = ecs.read_storage::<Name>();
         let items = ecs.read_storage::<Item>();
         let positions = ecs.read_storage::<Position>();
-        
+
         let mut game_log = ecs.fetch_mut::<GameLog>();
-        
+
         let collector_name = names.get(collector);
         let collector_position = positions.get(collector);
-        
+
         let mut picked_item: Option<Entity> = None;
-        
+
         if let Some(collector_position) = collector_position {
             for (item_entity, _, position) in (&entities, &items, &positions).join() {
                 if collector_position.is_equal(position) {
@@ -246,22 +246,25 @@ impl Item {
                 }
             }
         }
-        
-        let out_name: String = match collector_name { 
+
+        let out_name: String = match collector_name {
             None => "Some one".to_string(),
             Some(name_plate) => (*name_plate.name).to_string(),
         };
-        
+
         match picked_item {
-            None => { 
-                let message = format!("{} tried to pick up an item, but there is nothing on the ground.", out_name);
+            None => {
+                let message = format!(
+                    "{} tried to pick up an item, but there is nothing on the ground.",
+                    out_name
+                );
                 game_log.messages_push(&message);
             }
             Some(picked_item) => {
                 let mut pickups = ecs.write_storage::<Pickup>();
                 let pickup = Pickup {
                     collector,
-                    item: picked_item
+                    item: picked_item,
                 };
 
                 pickups.insert(collector, pickup).expect("");

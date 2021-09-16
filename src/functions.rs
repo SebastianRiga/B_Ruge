@@ -91,6 +91,9 @@ pub fn i32_to_alpha_key(value: i32) -> VirtualKeyCode {
         23 => VirtualKeyCode::X,
         24 => VirtualKeyCode::Y,
         25 => VirtualKeyCode::Z,
-        _ => panic!(format!("i32 {} can't be converted to an alpha key, because it is out of range (0-25)!", value)),
+        _ => panic!(format!(
+            "i32 {} can't be converted to an alpha key, because it is out of range (0-25)!",
+            value
+        )),
     }
 }
