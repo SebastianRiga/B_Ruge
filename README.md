@@ -1,6 +1,7 @@
 # B_Ruge
 
-[![Rust](https://github.com/SebastianRiga/B_Ruge/actions/workflows/deploy_web.yml/badge.svg?branch=main&event=pull_request)](https://github.com/SebastianRiga/B_Ruge/actions/workflows/deploy_web.yml)
+[![Web (Production)](https://github.com/SebastianRiga/B_Ruge/actions/workflows/deploy_web.yml/badge.svg?branch=main&event=pull_request)](https://github.com/SebastianRiga/B_Ruge/actions/workflows/deploy_web.yml)
+[![Web (Preview)](https://github.com/SebastianRiga/B_Ruge/actions/workflows/deploy_web_dev.yml/badge.svg?branch=dev&event=push)](https://github.com/SebastianRiga/B_Ruge/actions/workflows/deploy_web_dev.yml)
 
 D&D and NetHack inspired dungeon crawler written in rust.
 Based on the awesome tutorial written by Herbert Wolverson available at
