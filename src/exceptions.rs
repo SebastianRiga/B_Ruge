@@ -1,7 +1,6 @@
 //! Module for custom exceptions and exception messages
 
 /// TODO: Finish documentation
-
 use specs::Entity;
 
 pub fn get_add_damage_amount_error_message(target: &Entity, amount: i32) -> String {

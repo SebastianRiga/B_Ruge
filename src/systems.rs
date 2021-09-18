@@ -1,15 +1,17 @@
 //! Module containing all systems of the game
 
 /// TODO: Add inline documentation for system executions
-
 use rltk::{a_star_search, console, field_of_view, Point, VirtualKeyCode};
 use specs::prelude::*;
 
-use crate::{DamageCounter, DialogInterface, DialogOption, Loot, PickupItem, Potion, Statistics, UsePotion, DropItem};
+use crate::{
+    DamageCounter, DialogInterface, DialogOption, DropItem, Loot, PickupItem, Potion, Statistics,
+    UsePotion,
+};
 
 use super::{
-    Collision, FOV, GameLog, Map, MeleeAttack, Monster, Name, Player, Position,
-    ProcessingState, pythagoras_distance,
+    pythagoras_distance, Collision, GameLog, Map, MeleeAttack, Monster, Name, Player, Position,
+    ProcessingState, FOV,
 };
 
 /// System that handles the field of view
@@ -101,7 +103,7 @@ impl<'a> System<'a> for MonsterAI {
 
         // Iterate through all monsters that have an fov
         for (entity, fov, _monster, position) in
-        (&entities, &mut fovs, &monsters, &mut positions).join()
+            (&entities, &mut fovs, &monsters, &mut positions).join()
         {
             let distance_to_player = pythagoras_distance(&position.to_point(), &*player_position);
 
@@ -274,8 +276,10 @@ impl DamageSystem {
             DialogInterface::register_dialog(
                 ecs,
                 "An untimely end".to_string(),
-                Some("You have died while exploring the dungeon! Restart the game and try again."
-                    .to_string()),
+                Some(
+                    "You have died while exploring the dungeon! Restart the game and try again."
+                        .to_string(),
+                ),
                 vec![DialogOption {
                     description: "Quit the game".to_string(),
                     key: VirtualKeyCode::Q,
@@ -365,26 +369,26 @@ impl<'a> System<'a> for ItemDropSystem {
 
     fn run(&mut self, data: Self::SystemData) {
         let (entities, mut game_log, names, mut loot, mut positions, mut drops) = data;
-        
+
         for (entity, drop) in (&entities, &drops).join() {
-            let entity_position =  positions.get(entity).unwrap();
-            
+            let entity_position = positions.get(entity).unwrap();
+
             let drop_position = Position {
                 x: entity_position.x,
                 y: entity_position.y,
             };
-            
+
             positions.insert(drop.item, drop_position).expect("");
             loot.remove(drop.item);
-            
+
             let entity_name = &names.get(entity).unwrap().name;
             let item_name = &names.get(drop.item).unwrap().name;
-            
+
             let log_message = format!("{} drops {}", entity_name, item_name);
-            
+
             game_log.messages_push(&log_message);
         }
-        
+
         drops.clear();
     }
 }

@@ -1,7 +1,6 @@
 //! Game state handling module
 
 /// TODO: Finish documentation
-
 use rltk::{GameState, Rltk};
 use specs::prelude::*;
 
@@ -44,7 +43,7 @@ impl State {
 
         let mut potion_drink_system = PotionDrinkSystem {};
         potion_drink_system.run_now(&self.ecs);
-        
+
         let mut item_drop_system = ItemDropSystem {};
         item_drop_system.run_now(&self.ecs);
 
@@ -85,10 +84,8 @@ impl State {
         let renderers = self.ecs.read_storage::<Renderable>();
 
         let mut entities = (&positions, &renderers).join().collect::<Vec<_>>();
-        entities.sort_by(|&first, &second| {
-            second.1.order.cmp(&first.1.order)
-        });
-        
+        entities.sort_by(|&first, &second| second.1.order.cmp(&first.1.order));
+
         for (position, renderable) in entities.iter() {
             if map.is_tile_in_fov(position.x, position.y) {
                 ctx.set(

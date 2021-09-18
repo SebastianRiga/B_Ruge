@@ -1,7 +1,6 @@
 //! Module for random number generation
 
 /// TODO: Add documentation
-
 use chrono::Utc;
 use rltk::{console, RandomNumberGenerator};
 use specs::prelude::*;

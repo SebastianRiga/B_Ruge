@@ -96,7 +96,7 @@ pub fn new_gremlin(ecs: &mut World, position: Position, suffix: Option<String>) 
         symbol: rltk::to_cp437('g'),
         fg,
         bg,
-        order: 1
+        order: 1,
     };
 
     let statistic = Statistics {
@@ -110,11 +110,11 @@ pub fn new_gremlin(ecs: &mut World, position: Position, suffix: Option<String>) 
 }
 
 /// Creates a new [Potion] entity at the supplied `position` in the passed `ecs`.
-/// 
+///
 /// # Arguments
 /// * `ecs`: The [World] in which the `potion` should be created.
 /// * `position`: The [Position] at which the potion should be placed.
-/// 
+///
 pub fn new_health_potion(ecs: &mut World, position: Position) -> Entity {
     let (fg, bg) = swatch::HEALTH_POTION.colors();
 
@@ -124,7 +124,7 @@ pub fn new_health_potion(ecs: &mut World, position: Position) -> Entity {
             symbol: rltk::to_cp437('!'),
             fg,
             bg,
-            order: 2
+            order: 2,
         })
         .with(Name {
             name: "Health Potion".to_string(),
@@ -135,11 +135,11 @@ pub fn new_health_potion(ecs: &mut World, position: Position) -> Entity {
 }
 
 /// Creates a random monster in the `ecs` at the passed `position`.
-/// 
+///
 /// * Arguments
 /// * `ecs`: The [World] in which the monster should be created.
 /// * `position`: The [Position] at which the monster should be placed.
-/// 
+///
 pub fn random_monster(ecs: &mut World, position: Position) -> Entity {
     let creator = [new_goblin, new_gremlin];
     let upper_bound = creator.len() as i32;
@@ -151,14 +151,14 @@ pub fn random_monster(ecs: &mut World, position: Position) -> Entity {
 
 /// Creates a new monster in the passed `ecs` and attaches the supplied
 /// `name`, `renderable`, `statistic` and `position` components.
-/// 
+///
 /// # Arguments
 /// * `ecs`: The [World] the monster should be added to.
 /// * `name`: The [Name] of the monster.
 /// * `renderable`: The [Renderable] information of the monster.
 /// * `statistic`: The [Statistic] data of the monster for battle.
 /// * `position`: The [Position] of the monster in the world.
-/// 
+///
 fn new_monster(
     ecs: &mut World,
     name: Name,

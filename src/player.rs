@@ -1,7 +1,6 @@
 //! Collection of functions for the player.
 
 /// TODO: Finish documentation
-
 use std::cmp::{max, min};
 
 use rltk::{a_star_search, Point, Rltk, VirtualKeyCode};
@@ -154,7 +153,7 @@ fn show_inventory(ecs: &mut World, drop: bool) {
                     let item = *args[0].downcast_ref::<Entity>().unwrap();
                     let player = *args[1].downcast_ref::<Entity>().unwrap();
                     let is_dropping_item = *args[2].downcast_ref::<bool>().unwrap();
-                    
+
                     if is_dropping_item {
                         Item::drop_item(world, &player, &item);
                     } else {
@@ -166,7 +165,7 @@ fn show_inventory(ecs: &mut World, drop: bool) {
             counter += 1;
         }
     }
-    
+
     let title = if drop {
         "Select item to drop".to_string()
     } else {
@@ -176,7 +175,7 @@ fn show_inventory(ecs: &mut World, drop: bool) {
     let message = if options.is_empty() {
         Some("You backpack is empty...".to_string())
     } else {
-       None
+        None
     };
 
     DialogInterface::register_dialog(ecs, title, message, options, true);

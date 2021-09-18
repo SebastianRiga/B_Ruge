@@ -123,9 +123,9 @@ impl DialogInterface {
         // Calculate the width and height for the dialog
         let message_length = match &self.message {
             None => 0 as f32,
-            Some(message) => message.len() as f32
+            Some(message) => message.len() as f32,
         };
-        
+
         let width = (config::MAP_WIDTH as f32 / 2.5) as i32;
         let mut height = (message_length / width as f32).ceil() as i32;
         height += (self.options.len() * 2) as i32 + 3;
@@ -154,7 +154,7 @@ impl DialogInterface {
         );
 
         let mut y_position = y + 2;
-        
+
         // Draw the message if present
         if let Some(message) = &self.message {
             // Split the message into chunks that fit into the dialogs frame
@@ -171,7 +171,7 @@ impl DialogInterface {
 
             y_position += 1;
         }
-        
+
         // Draw the dialog's options
         for option in self.options.iter() {
             let key_string = virtual_key_code_to_string(option.key);
@@ -185,7 +185,7 @@ impl DialogInterface {
             y_position += 2;
         }
 
-        // If the dialog is cancelable, print the `dismiss` option 
+        // If the dialog is cancelable, print the `dismiss` option
         // at the bottom.
         if self.cancelable {
             terminal.print_color(

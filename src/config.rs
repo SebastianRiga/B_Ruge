@@ -40,12 +40,12 @@ pub const MAX_MONSTERS_PER_ROOM: i32 = 4;
 pub const MAX_ITEMS_PER_ROOM: i32 = 2;
 
 /// Prints the games logo, copyright notice and current
-/// version to the console. 
-/// 
+/// version to the console.
+///
 /// # Notes
 /// * If the game is running in a browser through web assembly, the
 /// message is printed to the browsers debug console.
-/// 
+///
 pub fn log_starting_message() {
     let message = format!(
         r#"
