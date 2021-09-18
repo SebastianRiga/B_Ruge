@@ -8,6 +8,7 @@ use super::{
     ItemCollectionSystem, Map, MapDexSystem, MeleeCombatSystem, MonsterAI, Position,
     PotionDrinkSystem, Renderable,
 };
+use crate::ItemDropSystem;
 
 /// Struct describing the current state of the game
 /// and providing access to the underlying `ECS`
@@ -41,6 +42,9 @@ impl State {
 
         let mut potion_drink_system = PotionDrinkSystem {};
         potion_drink_system.run_now(&self.ecs);
+        
+        let mut item_drop_system = ItemDropSystem {};
+        item_drop_system.run_now(&self.ecs);
 
         self.ecs.maintain();
     }
@@ -78,7 +82,12 @@ impl State {
         let positions = self.ecs.read_storage::<Position>();
         let renderers = self.ecs.read_storage::<Renderable>();
 
-        for (position, renderable) in (&positions, &renderers).join() {
+        let mut entities = (&positions, &renderers).join().collect::<Vec<_>>();
+        entities.sort_by(|&first, &second| {
+            second.1.order.cmp(&first.1.order)
+        });
+        
+        for (position, renderable) in entities.iter() {
             if map.is_tile_in_fov(position.x, position.y) {
                 ctx.set(
                     position.x,

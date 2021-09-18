@@ -15,6 +15,7 @@ impl TileFactory {
             symbol: rltk::to_cp437('.'),
             fg,
             bg,
+            order: -1,
         }
     }
 
@@ -26,6 +27,7 @@ impl TileFactory {
             symbol: rltk::to_cp437('#'),
             fg,
             bg,
+            order: -1,
         }
     }
 }

@@ -6,7 +6,7 @@ use rltk::{a_star_search, Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use specs::shred::Fetch;
 
-use crate::{DialogInterface, DialogOption, Loot, Name, UsePotion};
+use crate::{DialogInterface, DialogOption, Loot, Name, Potion};
 
 use super::{
     config, i32_to_alpha_key, Item, Map, MeleeAttack, Player, PlayerPathing, Position,
@@ -126,10 +126,10 @@ fn pick_up_item(ecs: &mut World) {
         player = *player_entity;
     }
 
-    Item::pick_up(ecs, player);
+    Item::pick_up(ecs, &player);
 }
 
-fn show_inventory(ecs: &mut World) {
+fn show_inventory(ecs: &mut World, drop: bool) {
     let mut options: Vec<DialogOption> = Vec::new();
 
     {
@@ -147,24 +147,37 @@ fn show_inventory(ecs: &mut World) {
             options.push(DialogOption {
                 description: name.name.to_string(),
                 key: i32_to_alpha_key(counter),
-                args: vec![Box::new(entity), Box::new(*player)],
+                args: vec![Box::new(entity), Box::new(*player), Box::new(drop)],
                 callback: Box::new(|world, _, args| {
-                    let mut usage_intent = world.write_storage::<UsePotion>();
-
                     let item = *args[0].downcast_ref::<Entity>().unwrap();
                     let player = *args[1].downcast_ref::<Entity>().unwrap();
-
-                    let usage = UsePotion { potion: item };
-
-                    usage_intent.insert(player, usage).expect("");
+                    let is_dropping_item = *args[2].downcast_ref::<bool>().unwrap();
+                    
+                    if is_dropping_item {
+                        Item::drop_item(world, &player, &item);
+                    } else {
+                        Potion::drink(world, &player, &item);
+                    }
                 }),
             });
 
             counter += 1;
         }
     }
+    
+    let title = if drop {
+        "Select item to drop".to_string()
+    } else {
+        "Inventory".to_string()
+    };
 
-    DialogInterface::register_dialog(ecs, "Inventory".to_string(), "".to_string(), options, true);
+    let message = if options.is_empty() {
+        Some("You backpack is empty...".to_string())
+    } else {
+       None
+    };
+
+    DialogInterface::register_dialog(ecs, title, message, options, true);
 }
 
 fn get_player_entity(ecs: &World) -> Fetch<Entity> {
@@ -218,13 +231,13 @@ pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> Processing
 
             VirtualKeyCode::G => pick_up_item(&mut game_state.ecs),
 
-            VirtualKeyCode::I => show_inventory(&mut game_state.ecs),
+            VirtualKeyCode::I => show_inventory(&mut game_state.ecs, ctx.shift),
 
             VirtualKeyCode::Escape => {
                 DialogInterface::register_dialog(
                     &mut game_state.ecs,
                     "Pause".to_string(),
-                    "What would you like to do in this moment of respite?".to_string(),
+                    Some("What would you like to do in this moment of respite?".to_string()),
                     vec![
                         DialogOption {
                             description: "Save".to_string(),

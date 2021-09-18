@@ -36,7 +36,7 @@ fn place_entities_in_room(
     for _ in 0..max_placements {
         let mut is_placed = false;
 
-        if !is_placed {
+        while !is_placed {
             let x = room.left + rng::roll_dice(ecs, 1, i32::abs(room.right - room.left));
             let y = room.top + rng::roll_dice(ecs, 1, i32::abs(room.bottom - room.top));
 

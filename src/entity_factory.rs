@@ -26,6 +26,7 @@ pub fn new_player(position: &Position, ecs: &mut World) -> Entity {
             symbol: rltk::to_cp437('@'),
             fg,
             bg,
+            order: 0,
         })
         .with(Player {})
         .with(FOV {
@@ -63,6 +64,7 @@ pub fn new_goblin(ecs: &mut World, position: Position, suffix: Option<String>) -
         symbol: rltk::to_cp437('o'),
         fg,
         bg,
+        order: 1,
     };
 
     let statistic = Statistics {
@@ -94,6 +96,7 @@ pub fn new_gremlin(ecs: &mut World, position: Position, suffix: Option<String>) 
         symbol: rltk::to_cp437('g'),
         fg,
         bg,
+        order: 1
     };
 
     let statistic = Statistics {
@@ -115,6 +118,7 @@ pub fn new_health_potion(ecs: &mut World, position: Position) -> Entity {
             symbol: rltk::to_cp437('!'),
             fg,
             bg,
+            order: 2
         })
         .with(Name {
             name: "Health Potion".to_string(),

@@ -63,6 +63,16 @@ pub fn virtual_key_code_to_string(key: VirtualKeyCode) -> &'static str {
     }
 }
 
+/// Converts the passed [i32] `value` to a corresponding
+/// alpha [VirtualKeyCode].
+///
+/// # Arguments
+/// * `value`: The [i32] value to convert.
+///
+/// # Notes
+/// * If the passed value is convertible,
+/// the function panics.
+///
 pub fn i32_to_alpha_key(value: i32) -> VirtualKeyCode {
     match value {
         0 => VirtualKeyCode::A,
@@ -91,9 +101,9 @@ pub fn i32_to_alpha_key(value: i32) -> VirtualKeyCode {
         23 => VirtualKeyCode::X,
         24 => VirtualKeyCode::Y,
         25 => VirtualKeyCode::Z,
-        _ => panic!(format!(
+        _ => panic!(
             "i32 {} can't be converted to an alpha key, because it is out of range (0-25)!",
             value
-        )),
+        ),
     }
 }

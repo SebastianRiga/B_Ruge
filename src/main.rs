@@ -1,3 +1,4 @@
+#![deny(warnings)]
 #![warn(missing_docs)]
 
 //! D&D and NetHack inspired dungeon crawler written in rust.
@@ -7,6 +8,7 @@ use specs::prelude::*;
 
 mod config;
 mod entity_factory;
+mod exceptions;
 mod rng;
 mod spawn_controller;
 mod swatch;

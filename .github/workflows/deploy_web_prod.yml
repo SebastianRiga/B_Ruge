@@ -13,20 +13,21 @@ jobs:
     runs-on: ubuntu-latest
   
     steps:
-    - uses: actions/checkout@v2
-    - name: Install prerequisites
-      run: sh ./web/scripts/init_web_assembly.sh
-    - name: Build Web
-      run: sh ./web/scripts/build_web.sh
-    - name: Vercel Deployment
-      uses: amondnet/vercel-action@v20
-      with:
-        vercel-token: ${{ secrets.VERCEL_TOKEN }}
-        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-        github-token: ${{ secrets.VERCEL_GITHUB_TOKEN }}
-        working-directory: "web/out"
-        vercel-args: "--prod"
-        scope: ${{ secrets.VERCEL_ORG_ID }}
-        github-comment: true
-        alias-domains: ${{ secrets.VERCEL_DOMAIN }}
+      - uses: actions/checkout@v2
+      - name: Install prerequisites
+        run: sh ./web/scripts/init_web_assembly.sh
+      - name: Build Web
+        run: sh ./web/scripts/build_web.sh
+      - name: Vercel Deployment
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          github-token: ${{ secrets.VERCEL_GITHUB_TOKEN }}
+          working-directory: "web/out"
+          vercel-args: "--prod"
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+          github-comment: true
+          alias-domains: ${{ secrets.VERCEL_DOMAIN }}
+  
