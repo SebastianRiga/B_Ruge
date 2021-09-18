@@ -1,6 +1,6 @@
 [package]
 name = "b_ruge"
-version = "0.2.6"
+version = "0.2.7"
 edition = "2018"
 description = "D&D and NetHack inspired dungeon crawler written in rust."
 license = "MIT"

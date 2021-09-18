@@ -4,7 +4,7 @@ use rltk::{Point, Rltk};
 use specs::prelude::*;
 
 use super::{
-    timestamp_formatted, GameLog, Map, Name, Player, Position, Statistics, config, swatch
+    config, swatch, timestamp_formatted, GameLog, Map, Name, Player, Position, Statistics,
 };
 
 /// Draws the ui of the game in the given `ctx`.
@@ -28,7 +28,10 @@ pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
 
 fn draw_message_log(ctx: &mut Rltk) {
     let (x, y) = (0, config::MAP_HEIGHT);
-    let (width, height) = (config::WINDOW_WIDTH - 1, config::WINDOW_WIDTH - config::MAP_HEIGHT - 1);
+    let (width, height) = (
+        config::WINDOW_WIDTH - 1,
+        config::WINDOW_WIDTH - config::MAP_HEIGHT - 1,
+    );
     let (fg, bg) = swatch::MESSAGE_BOX.colors();
 
     ctx.draw_box(x, y, width, height, fg, bg);
@@ -62,7 +65,15 @@ fn draw_player_health(ecs: &World, ctx: &mut Rltk) {
 
         let (fg, bg) = swatch::PLAYER_HEALTH_BAR.colors();
 
-        ctx.draw_bar_horizontal(28, config::MAP_HEIGHT, 50, statistic.hp, statistic.hp_max, fg, bg);
+        ctx.draw_bar_horizontal(
+            28,
+            config::MAP_HEIGHT,
+            50,
+            statistic.hp,
+            statistic.hp_max,
+            fg,
+            bg,
+        );
     }
 }
 

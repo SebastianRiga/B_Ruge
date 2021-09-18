@@ -9,10 +9,10 @@ use super::Position;
 ///
 /// # Examples
 ///
-/// (left, top) --> +-----------#
-///                 |           |
-///                 |           |
-///                 |           |
+/// (left, top) --> +-----------# \
+///                 |           | \
+///                 |           | \
+///                 |           | \
 ///                 #-----------+ <-- (right, bottom)
 ///
 #[derive(Default, Debug, Clone)]
@@ -41,11 +41,11 @@ impl Rectangle {
     /// * `width`: Width of the rectangle.
     /// * `height`: Height of the rectangle.
     ///
-    pub fn new(x: i32, y: i32, widht: i32, height: i32) -> Self {
+    pub fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
         Rectangle {
             left: x,
             top: y,
-            right: x + widht,
+            right: x + width,
             bottom: y + height,
         }
     }

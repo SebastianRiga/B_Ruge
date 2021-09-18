@@ -4,10 +4,11 @@ use rltk::{GameState, Rltk};
 use specs::prelude::*;
 
 use super::{
-    player_handle_input, DamageSystem, FOVSystem, Map, MapDexSystem, MeleeCombatSystem,
-    MonsterAI, Position, Renderable, ui
+    player_handle_input, ui_controller, DamageSystem, DialogInterface, DialogResult, FOVSystem,
+    ItemCollectionSystem, Map, MapDexSystem, MeleeCombatSystem, MonsterAI, Position,
+    PotionDrinkSystem, Renderable,
 };
-use crate::{DialogInterface, DialogResult};
+use crate::ItemDropSystem;
 
 /// Struct describing the current state of the game
 /// and providing access to the underlying `ECS`
@@ -36,6 +37,15 @@ impl State {
         let mut damage_system = DamageSystem {};
         damage_system.run_now(&self.ecs);
 
+        let mut item_collection_system = ItemCollectionSystem {};
+        item_collection_system.run_now(&self.ecs);
+
+        let mut potion_drink_system = PotionDrinkSystem {};
+        potion_drink_system.run_now(&self.ecs);
+        
+        let mut item_drop_system = ItemDropSystem {};
+        item_drop_system.run_now(&self.ecs);
+
         self.ecs.maintain();
     }
 
@@ -57,22 +67,27 @@ impl State {
 
     /// Displays the ui of the game on the screen, this includes
     /// the map, message log, status information etc.
-    /// 
+    ///
     /// # Arguments
     /// * `ctx`: The context in which the ui should be drawn.
-    /// 
+    ///
     fn show_ui(&self, ctx: &mut Rltk) {
         let map = self.ecs.fetch::<Map>();
         map.draw(ctx);
-        
-        ui::draw_ui(&self.ecs, ctx);
+
+        ui_controller::draw_ui(&self.ecs, ctx);
 
         // Get all entities with [Position] and [Renderable]
         // attributes and render them on the screen.
         let positions = self.ecs.read_storage::<Position>();
         let renderers = self.ecs.read_storage::<Renderable>();
 
-        for (position, renderable) in (&positions, &renderers).join() {
+        let mut entities = (&positions, &renderers).join().collect::<Vec<_>>();
+        entities.sort_by(|&first, &second| {
+            second.1.order.cmp(&first.1.order)
+        });
+        
+        for (position, renderable) in entities.iter() {
             if map.is_tile_in_fov(position.x, position.y) {
                 ctx.set(
                     position.x,
@@ -85,9 +100,9 @@ impl State {
         }
     }
 
-    fn show_dialog(&self, ctx: &mut Rltk) -> DialogResult {
-        let dialog = self.ecs.write_resource::<DialogInterface>();
-        dialog.show(ctx)
+    fn show_dialog(&mut self, ctx: &mut Rltk) -> DialogResult {
+        let mut dialog = self.ecs.fetch_mut::<DialogInterface>();
+        dialog.show(&self.ecs, ctx)
     }
 }
 
@@ -110,10 +125,12 @@ impl GameState for State {
         match next_processing_state {
             ProcessingState::Dialog => {
                 self.run_systems();
+                self.ecs.maintain();
                 show_dialog = true;
             }
             ProcessingState::Internal => {
                 self.run_systems();
+                self.ecs.maintain();
                 next_processing_state = ProcessingState::WaitingForInput;
             }
             ProcessingState::WaitingForInput => {
@@ -121,10 +138,12 @@ impl GameState for State {
             }
             ProcessingState::PlayerTurn => {
                 self.run_systems();
+                self.ecs.maintain();
                 next_processing_state = ProcessingState::MonsterTurn;
             }
             ProcessingState::MonsterTurn => {
                 self.run_systems();
+                self.ecs.maintain();
                 next_processing_state = ProcessingState::Internal;
             }
         }

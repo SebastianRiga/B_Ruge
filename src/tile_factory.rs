@@ -1,6 +1,6 @@
 //! Factory to create entityless tiles
 
-use super::{Renderable, swatch};
+use super::{swatch, Renderable};
 
 /// Factory to produce basic tile
 /// renderables, which are not entities.
@@ -15,6 +15,7 @@ impl TileFactory {
             symbol: rltk::to_cp437('.'),
             fg,
             bg,
+            order: -1,
         }
     }
 
@@ -26,6 +27,7 @@ impl TileFactory {
             symbol: rltk::to_cp437('#'),
             fg,
             bg,
+            order: -1,
         }
     }
 }

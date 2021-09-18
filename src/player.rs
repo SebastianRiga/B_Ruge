@@ -4,12 +4,13 @@ use std::cmp::{max, min};
 
 use rltk::{a_star_search, Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
+use specs::shred::Fetch;
 
-use crate::{DialogInterface, DialogOption};
+use crate::{DialogInterface, DialogOption, Loot, Name, Potion};
 
 use super::{
-    Map, MeleeAttack, Player, PlayerPathing, Position, ProcessingState, State, Statistics, FOV,
-    config,
+    config, i32_to_alpha_key, Item, Map, MeleeAttack, Player, PlayerPathing, Position,
+    ProcessingState, State, Statistics, FOV,
 };
 
 /// Moves the [Player] entity through its stored [Position]
@@ -25,7 +26,7 @@ use super::{
 /// If the coordinate the player tries to move to is out of
 /// bounds or not walkable, the player wont be moved.
 ///  
-pub fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
+fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
     // Fetch map from ecs
     let map = ecs.fetch::<Map>();
     let entities = ecs.entities();
@@ -73,7 +74,7 @@ pub fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
     }
 }
 
-fn player_moved_after_click(ecs: &mut World) -> Option<(i32, i32)> {
+fn player_move_click(ecs: &mut World) -> Option<(i32, i32)> {
     let map = ecs.write_resource::<Map>();
     let player_ecs_position = ecs.write_resource::<Point>();
     let mut pathing_writer = ecs.write_resource::<PlayerPathing>();
@@ -109,13 +110,78 @@ fn handle_new_click_to_move(ecs: &mut World, ctx: &Rltk) {
 
     map.blocked_tiles = blocked_tiles;
 
-    let fov = fovs.get(*player).unwrap();
-
-    if path.success && path.steps.len() > 1 && fov.contains(&mouse_position) {
-        path.steps.remove(0);
-        path.steps.reverse();
-        pathing_writer.update(&mut path.steps);
+    if let Some(fov) = fovs.get(*player) {
+        if path.success && path.steps.len() > 1 && fov.contains(&mouse_position) {
+            path.steps.remove(0);
+            path.steps.reverse();
+            pathing_writer.update(&mut path.steps);
+        }
     }
+}
+
+fn pick_up_item(ecs: &mut World) {
+    let player;
+    {
+        let player_entity = get_player_entity(&ecs);
+        player = *player_entity;
+    }
+
+    Item::pick_up(ecs, &player);
+}
+
+fn show_inventory(ecs: &mut World, drop: bool) {
+    let mut options: Vec<DialogOption> = Vec::new();
+
+    {
+        let entities = ecs.entities();
+        let player = get_player_entity(&ecs);
+        let names = ecs.read_storage::<Name>();
+        let backpack = ecs.read_storage::<Loot>();
+
+        let mut counter = 0;
+
+        for (entity, _, name) in (&entities, &backpack, &names)
+            .join()
+            .filter(|item| item.1.owner == *player)
+        {
+            options.push(DialogOption {
+                description: name.name.to_string(),
+                key: i32_to_alpha_key(counter),
+                args: vec![Box::new(entity), Box::new(*player), Box::new(drop)],
+                callback: Box::new(|world, _, args| {
+                    let item = *args[0].downcast_ref::<Entity>().unwrap();
+                    let player = *args[1].downcast_ref::<Entity>().unwrap();
+                    let is_dropping_item = *args[2].downcast_ref::<bool>().unwrap();
+                    
+                    if is_dropping_item {
+                        Item::drop_item(world, &player, &item);
+                    } else {
+                        Potion::drink(world, &player, &item);
+                    }
+                }),
+            });
+
+            counter += 1;
+        }
+    }
+    
+    let title = if drop {
+        "Select item to drop".to_string()
+    } else {
+        "Inventory".to_string()
+    };
+
+    let message = if options.is_empty() {
+        Some("You backpack is empty...".to_string())
+    } else {
+       None
+    };
+
+    DialogInterface::register_dialog(ecs, title, message, options, true);
+}
+
+fn get_player_entity(ecs: &World) -> Fetch<Entity> {
+    ecs.fetch::<Entity>()
 }
 
 /// Handles the [Player] movement through user input.
@@ -126,12 +192,9 @@ fn handle_new_click_to_move(ecs: &mut World, ctx: &Rltk) {
 /// * `ctx`: Reference to the context of the `ecs` to read the key input.
 ///
 pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> ProcessingState {
-    match player_moved_after_click(&mut game_state.ecs) {
-        Some((delta_x, delta_y)) => {
-            player_move(delta_x, delta_y, &mut game_state.ecs);
-            return ProcessingState::PlayerTurn;
-        }
-        None => {}
+    if let Some((delta_x, delta_y)) = player_move_click(&mut game_state.ecs) {
+        player_move(delta_x, delta_y, &mut game_state.ecs);
+        return ProcessingState::PlayerTurn;
     }
 
     match ctx.key {
@@ -166,16 +229,36 @@ pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> Processing
 
             VirtualKeyCode::Numpad3 | VirtualKeyCode::X => player_move(1, 1, &mut game_state.ecs),
 
+            VirtualKeyCode::G => pick_up_item(&mut game_state.ecs),
+
+            VirtualKeyCode::I => show_inventory(&mut game_state.ecs, ctx.shift),
+
             VirtualKeyCode::Escape => {
                 DialogInterface::register_dialog(
                     &mut game_state.ecs,
-                    "Quit game?".to_string(),
-                    "Are you sure you want to end your current run?".to_string(),
-                    &[DialogOption {
-                        description: "Quit".to_string(),
-                        key: VirtualKeyCode::Y,
-                        callback: |ctx| ctx.quit(),
-                    }],
+                    "Pause".to_string(),
+                    Some("What would you like to do in this moment of respite?".to_string()),
+                    vec![
+                        DialogOption {
+                            description: "Save".to_string(),
+                            key: VirtualKeyCode::S,
+                            args: vec![],
+                            callback: Box::new(|_, ctx, _| ctx.quit()),
+                        },
+                        DialogOption {
+                            description: "Load".to_string(),
+                            key: VirtualKeyCode::L,
+                            args: vec![],
+                            callback: Box::new(|_, ctx, _| ctx.quit()),
+                        },
+                        DialogOption {
+                            description: "Quit".to_string(),
+                            key: VirtualKeyCode::Q,
+                            args: vec![],
+                            callback: Box::new(|_, ctx, _| ctx.quit()),
+                        },
+                    ],
+                    true,
                 );
             }
 

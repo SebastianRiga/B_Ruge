@@ -4,9 +4,11 @@ use rltk::{FontCharType, Point, RGB};
 use specs::prelude::*;
 use specs_derive::*;
 
+use super::{exceptions, GameLog};
+
 /// Component to describe the position
 /// of a game entity in the game.
-#[derive(Component)]
+#[derive(Component, Copy, Clone, PartialEq)]
 pub struct Position {
     /// X coordinate of the entity.
     pub x: i32,
@@ -48,11 +50,11 @@ impl Position {
     /// Returns `true` if the `x` and `y` coordinates of the
     /// the calling [Position] and the passed [Position]
     /// are equal. `False` otherwise.
-    /// 
+    ///
     /// # Arguments
     /// * `other`: The [Position], the calling [Position]
     /// should be compared to.
-    /// 
+    ///
     pub fn is_equal(&self, other: &Position) -> bool {
         self.x == other.x && self.y == other.y
     }
@@ -60,26 +62,26 @@ impl Position {
     /// Returns `true` if the `x` and `y` coordinates of the
     /// calling [Position] and the passed [Point] are equal.
     /// `False` otherwise.
-    /// 
+    ///
     /// # Arguments
     /// * `point`: The [Point] with which the [Position] should be compared.
-    /// 
+    ///
     pub fn is_equal_to_point(&self, point: &Point) -> bool {
         self.x == point.x && self.y == point.y
     }
 
     /// Returns `true` if the `x` and `y` coordinates of the
     /// calling [Position] and passed `(i32, i32) tuple` are
-    /// equal. `False` otherwise. 
-    /// 
+    /// equal. `False` otherwise.
+    ///
     /// # Arguments
     /// * `tuple`: The `(i32, i32) tuple` the [Position] should
     /// be compared to.
-    /// 
+    ///
     /// # Notes
     /// * The `(i32, i32) tuple` are presumed to be of the format
     /// `(x, y)`.
-    /// 
+    ///
     pub fn is_equal_to_tuple(&self, tuple: &(i32, i32)) -> bool {
         self.x == tuple.0 && self.y == tuple.1
     }
@@ -97,6 +99,9 @@ pub struct Renderable {
 
     /// Background color of the entity.
     pub bg: RGB,
+    
+    /// Place in the rendering order
+    pub order: i32,
 }
 
 /// Component for the player entity.
@@ -210,11 +215,179 @@ impl DamageCounter {
                 damage_values: vec![amount],
             };
 
-            store.insert(target, damage_counter).expect(&format!(
-                "Damage amount {} couldn't be stored in the ecs for entity with id {}",
-                amount,
-                target.id()
-            ));
+            let on_error_message =
+                exceptions::get_add_damage_amount_error_message(&target, amount);
+
+            store
+                .insert(target, damage_counter)
+                .expect(&on_error_message);
         }
     }
+}
+
+/// Component marking an entity as an item
+/// e.g. potions, equipment, scrolls, etc.
+#[derive(Component, Debug)]
+pub struct Item {}
+
+impl Item {
+    /// Picks up the first [Item] [Entity] at the [Position] of the `collector` [Entity]
+    /// and adds it to the [Loot] of the `collector` and sends a corresponding message to the
+    /// [GameLog]. If no [Item] is present at the current [Position] of the [Entity] a message
+    /// indicating that nothing was found is send to the [GameLog].
+    ///
+    /// # Arguments
+    /// * `ecs`: Ecs reference to read the corresponding [Entity] values.
+    /// * `collector`: The [Entity] reference, that wants to pick up an item.
+    ///
+    pub fn pick_up(ecs: &World, collector: &Entity) {
+        let entities = ecs.entities();
+        let names = ecs.read_storage::<Name>();
+        let items = ecs.read_storage::<Item>();
+        let positions = ecs.read_storage::<Position>();
+
+        let mut game_log = ecs.fetch_mut::<GameLog>();
+
+        let collector_name = names.get(*collector);
+        let collector_position = positions.get(*collector);
+
+        let mut picked_item: Option<Entity> = None;
+
+        if let Some(collector_position) = collector_position {
+            for (item_entity, _, position) in (&entities, &items, &positions).join() {
+                if collector_position.is_equal(position) {
+                    picked_item = Some(item_entity);
+                    break;
+                }
+            }
+        }
+
+        let out_name: String = match collector_name {
+            None => "Some one".to_string(),
+            Some(name_plate) => (*name_plate.name).to_string(),
+        };
+
+        match picked_item {
+            None => {
+                let message = format!(
+                    "{} tried to pick up an item, but there is nothing on the ground.",
+                    out_name
+                );
+                game_log.messages_push(&message);
+            }
+            Some(picked_item) => {
+                let mut pickups = ecs.write_storage::<PickupItem>();
+                let pickup = PickupItem {
+                    collector: *collector,
+                    item: picked_item,
+                };
+
+                let on_error_message =
+                    exceptions::get_pick_up_item_error_message(collector, &picked_item);
+
+                pickups.insert(*collector, pickup).expect(&on_error_message);
+            }
+        };
+    }
+
+    /// TODO: Add documentation
+    pub fn drop_item(ecs: &World, owner: &Entity, item: &Entity) {
+        let mut drop_intent = ecs.write_storage::<DropItem>();
+
+        let drop_item = DropItem { item: *item };
+
+        let on_error_message = exceptions::get_drop_item_error_message(owner, item);
+        drop_intent
+            .insert(*owner, drop_item)
+            .expect(&on_error_message);
+    }
+}
+
+/// Component describing a drinkable potion
+/// that heals the players hp.
+#[derive(Component, Debug)]
+pub struct Potion {
+    /// The amount of health, the [Potion]
+    /// restores for the [Entity] that drinks it.
+    pub healing_amount: i32,
+}
+
+impl Potion {
+    /// Adds a request to the passed `ecs`, that the `user` [Entity] wants to
+    /// drink the supplied `potion` [Entity].
+    /// 
+    /// # Arguments
+    /// * `ecs`: The overarching `ecs` to write to.
+    /// * `user`: The [Entity] that wants to drink the `potion`.
+    /// * `potion`: The `potion` [Entity] the `user` wants to drink.
+    /// 
+    pub fn drink(ecs: &World, user: &Entity, potion: &Entity) {
+        let mut usage_intent = ecs.write_storage::<UsePotion>();
+        
+        let usage = UsePotion { potion: *potion };
+
+        usage_intent.insert(*user, usage).expect("");
+    }
+}
+
+/// Component marking an [Entity] as collected,
+/// meaning it is in the inventory of a owning [Entity].
+#[derive(Component, Debug)]
+pub struct Loot {
+    /// The owner of the collected loot.
+    pub owner: Entity,
+}
+
+/// Component used for communication with the ItemCollectionSystem
+/// to indicate, that an [Entity] wants to pickup an [Item].
+#[derive(Component, Debug)]
+pub struct PickupItem {
+    /// The [Entity] wanting to pick up the item.
+    pub collector: Entity,
+
+    /// The [Item] the `collector` wants to pick up.
+    pub item: Entity,
+}
+
+/// Component used for communication with the
+/// ItemDropSystem to indicate, that an [Entity]
+/// wants to drop a collected [Item].
+#[derive(Component, Debug)]
+pub struct DropItem {
+    /// Reference to the [Item] entity to drop.
+    pub item: Entity,
+}
+
+/// Component used for communication with the
+/// PotionDrinkSystem to indicate, that an
+/// [Entity] wants to drink a [Potion].
+#[derive(Component, Debug)]
+pub struct UsePotion {
+    /// The [Potion] the [Entity] wants to consume.
+    pub potion: Entity,
+}
+
+/// Shorthand function to register all needed
+/// [Component]s of the game with the passed `ecs`.
+///
+/// # Arguments
+/// * `ecs`: Reference to the ECS in which the [Component]s should be registered.
+///
+pub fn register_components(ecs: &mut World) {
+    ecs.register::<FOV>();
+    ecs.register::<Name>();
+    ecs.register::<Item>();
+    ecs.register::<Loot>();
+    ecs.register::<Player>();
+    ecs.register::<Potion>();
+    ecs.register::<Monster>();
+    ecs.register::<Position>();
+    ecs.register::<DropItem>();
+    ecs.register::<Collision>();
+    ecs.register::<UsePotion>();
+    ecs.register::<Renderable>();
+    ecs.register::<Statistics>();
+    ecs.register::<PickupItem>();
+    ecs.register::<MeleeAttack>();
+    ecs.register::<DamageCounter>();
 }
