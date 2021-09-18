@@ -1,5 +1,7 @@
 //! Module containing all systems of the game
 
+/// TODO: Add inline documentation for system executions
+
 use rltk::{a_star_search, console, field_of_view, Point, VirtualKeyCode};
 use specs::prelude::*;
 

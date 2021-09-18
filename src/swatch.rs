@@ -1,5 +1,7 @@
 //! Module for color management
 
+/// TODO: Add remaining currently hardcoded colors to the swatch
+
 use rltk::RGB;
 
 /// The default background color for entities and tiles.

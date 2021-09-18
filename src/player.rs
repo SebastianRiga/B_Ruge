@@ -1,5 +1,7 @@
 //! Collection of functions for the player.
 
+/// TODO: Finish documentation
+
 use std::cmp::{max, min};
 
 use rltk::{a_star_search, Point, Rltk, VirtualKeyCode};

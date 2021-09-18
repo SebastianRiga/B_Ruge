@@ -1,5 +1,8 @@
 //! Module containing all UI functionality of the game
 
+/// TODO: Finish documentation
+
+
 use rltk::{Point, Rltk};
 use specs::prelude::*;
 

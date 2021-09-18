@@ -121,7 +121,6 @@ impl DialogInterface {
     ///
     pub fn show(&mut self, ecs: &World, terminal: &mut Rltk) -> DialogResult {
         // Calculate the width and height for the dialog
-
         let message_length = match &self.message {
             None => 0 as f32,
             Some(message) => message.len() as f32
@@ -132,12 +131,10 @@ impl DialogInterface {
         height += (self.options.len() * 2) as i32 + 3;
 
         // Calculate the x and y coordinate for the dialog
-
         let x = (config::MAP_WIDTH / 2) - (width / 2);
         let y = (config::MAP_HEIGHT / 2) - (height / 2);
 
         // Draw the dialog's box
-
         terminal.draw_box(
             x,
             y,
@@ -148,7 +145,6 @@ impl DialogInterface {
         );
 
         // Draw the dialog's title
-
         terminal.print_color(
             x + 2,
             y,
@@ -160,7 +156,6 @@ impl DialogInterface {
         let mut y_position = y + 2;
         
         // Draw the message if present
-
         if let Some(message) = &self.message {
             // Split the message into chunks that fit into the dialogs frame
             let message_chunks = message
@@ -178,7 +173,6 @@ impl DialogInterface {
         }
         
         // Draw the dialog's options
-
         for option in self.options.iter() {
             let key_string = virtual_key_code_to_string(option.key);
             terminal.print_color(
@@ -191,6 +185,8 @@ impl DialogInterface {
             y_position += 2;
         }
 
+        // If the dialog is cancelable, print the `dismiss` option 
+        // at the bottom.
         if self.cancelable {
             terminal.print_color(
                 x + 2,
@@ -202,7 +198,6 @@ impl DialogInterface {
         }
 
         // Listen for key press event
-
         if let Some(key) = terminal.key {
             let selection = self.options.iter_mut().find(|element| element.key == key);
 
@@ -211,6 +206,8 @@ impl DialogInterface {
                 return DialogResult::Consumed;
             }
 
+            // If the dialog is cancelable, check if the `escape` key
+            // was pressed.
             if self.cancelable {
                 if key == VirtualKeyCode::Escape {
                     return DialogResult::Consumed;
@@ -218,6 +215,8 @@ impl DialogInterface {
             }
         }
 
+        // If no key was pressed by the user, return the waiting state to try again in
+        // the next frame
         DialogResult::Waiting
     }
 }

@@ -1,5 +1,7 @@
 //! Module for spawning monsters, items and general entities.
 
+/// TODO: Add documentation
+
 use super::{config, entity_factory, rng, Position, Rectangle};
 use specs::prelude::*;
 

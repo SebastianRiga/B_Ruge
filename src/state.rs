@@ -1,5 +1,7 @@
 //! Game state handling module
 
+/// TODO: Finish documentation
+
 use rltk::{GameState, Rltk};
 use specs::prelude::*;
 
