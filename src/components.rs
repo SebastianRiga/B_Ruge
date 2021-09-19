@@ -289,7 +289,14 @@ impl Item {
         };
     }
 
-    /// TODO: Add documentation
+    /// Drops an [Item] [Entity] from the inventory of the `owner`
+    /// [Entity].
+    ///
+    /// # Arguments
+    /// * `ecs`: The [World] in which both the `owner` and `item` are stored.
+    /// * `owner`: The `owner` [Entity] of the `item`.
+    /// * `item`: The [Item] that the `owner` wants to drop.
+    ///
     pub fn drop_item(ecs: &World, owner: &Entity, item: &Entity) {
         let mut drop_intent = ecs.write_storage::<DropItem>();
 

@@ -3,7 +3,7 @@
 use rltk::console;
 
 /// The current version of the game.
-pub const GAME_VERSION: &'static str = "v0.2.7";
+pub const GAME_VERSION: &'static str = "v0.2.8";
 
 /// The name of the game, needed for display on the
 /// window and in-game.

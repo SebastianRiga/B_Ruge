@@ -1,9 +1,19 @@
 //! Module for spawning monsters, items and general entities.
 
-/// TODO: Add documentation
 use super::{config, entity_factory, rng, Position, Rectangle};
 use specs::prelude::*;
 
+/// Spawns monsters and items in the passed room [Rectangle],
+/// based on the parameters set in the game's [config].
+///
+/// # Arguments
+/// * `ecs`: The [World] in which the [Entity] structs will be saved.
+/// * `room`: The room from the [Map] in which the monsters and items
+/// should be spawned.
+///
+/// # See also
+/// * [place_entities_in_room]
+///
 pub fn spawn_in_room(ecs: &mut World, room: &Rectangle) {
     let mut monster_spawn_positions: Vec<Position> = Vec::new();
     let mut item_spawn_positions: Vec<Position> = Vec::new();
@@ -28,6 +38,18 @@ pub fn spawn_in_room(ecs: &mut World, room: &Rectangle) {
     }
 }
 
+/// Convenience function that creates monster or item entities
+/// in accordance to the passed `max_placement` parameter and
+/// the positions which are already occupied by a monster as
+/// indicated biy the container [Vec]
+///
+/// # Arguments
+/// * `ecs`: The [World] in which the entities should be stored.
+/// * `max_placements`: Maximum amount of entities that can be placed.
+/// * `room`: Reference to the room [Rectangle] from the [Map], in which
+/// the entities should be placed.
+/// * `container`: [Vec] storing the spawn positions of the monsters.
+///  
 fn place_entities_in_room(
     ecs: &mut World,
     max_placements: i32,

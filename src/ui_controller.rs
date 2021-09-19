@@ -1,6 +1,5 @@
 //! Module containing all UI functionality of the game
 
-/// TODO: Finish documentation
 use rltk::{Point, Rltk};
 use specs::prelude::*;
 
@@ -15,18 +14,25 @@ use super::{
 /// * `ctx`: The console context in which the ui should be drawn.
 ///
 /// # See also
-/// * [draw_message_log]: Draws the message log box at the bottom of the screen.
-/// * [draw_player_health]: Draws the players health information and a corresponding health bar
-/// on top of the
+/// * [draw_message_log]
+/// * [draw_messages]
+/// * [draw_player_health]
+/// * [draw_mouse_cursor]
 ///
 pub fn draw_ui(ecs: &World, ctx: &mut Rltk) {
     draw_message_log(ctx);
     draw_messages(ecs, ctx);
     draw_player_health(ecs, ctx);
     draw_mouse_cursor(ctx);
-    draw_tooltips(ecs, ctx);
 }
 
+/// Draws the games message log at the bottom of the
+/// Screen.
+///
+/// # Arguments
+/// * `ctx`: The [Rltk] context in which the message log
+/// should be drawn.
+///
 fn draw_message_log(ctx: &mut Rltk) {
     let (x, y) = (0, config::MAP_HEIGHT);
     let (width, height) = (
@@ -38,6 +44,14 @@ fn draw_message_log(ctx: &mut Rltk) {
     ctx.draw_box(x, y, width, height, fg, bg);
 }
 
+/// Writes the messages which are stored in the [GameLog]
+/// struct of the `ecs` inside the message log ui.
+///
+/// # Arguments
+/// * `ecs`: THe [World] in which the [GameLog] is stored.
+/// * `ctx`: The [Rltk] context in which the messages should
+/// be written.
+///
 fn draw_messages(ecs: &World, ctx: &mut Rltk) {
     let mut game_log = ecs.fetch_mut::<GameLog>();
 
@@ -45,7 +59,7 @@ fn draw_messages(ecs: &World, ctx: &mut Rltk) {
     let mut y = config::MAP_HEIGHT + 1;
 
     game_log.messages_for_each_rev(|message| {
-        if y < config::WINDOW_HEIGHT - 1 {
+        if y < config::WINDOW_HEIGHT - 2 {
             let timestamp = timestamp_formatted();
             ctx.print(x, y, &format!("{} > {}", timestamp, message));
             y += 1;
@@ -53,6 +67,13 @@ fn draw_messages(ecs: &World, ctx: &mut Rltk) {
     })
 }
 
+/// Draws the players healh information in form of status
+/// text and a health bar on top of the message log ui.
+///
+/// # Arguments
+/// * `ecs`: The [World] in which the player is stored.
+/// * `ctx`: The [Rltk] context in which the ui should be drawn.
+///
 fn draw_player_health(ecs: &World, ctx: &mut Rltk) {
     let players = ecs.read_storage::<Player>();
     let statistics = ecs.read_storage::<Statistics>();
@@ -78,12 +99,29 @@ fn draw_player_health(ecs: &World, ctx: &mut Rltk) {
     }
 }
 
+/// Sets the background color of the
+/// tile currently focused by the mouse cursor.
+///
+/// # Arguments
+/// * `ctx`: The [Rltk] context in which the mouse cursor
+/// should be highlighted.
+///
+/// # See also
+/// * [swatch::Mouse_Cursor]
+///
 fn draw_mouse_cursor(ctx: &mut Rltk) {
     let (x, y) = ctx.mouse_pos();
     ctx.set_bg(x, y, swatch::MOUSE_CURSOR);
 }
 
-fn draw_tooltips(ecs: &World, ctx: &mut Rltk) {
+/// Draws a tooltip displaying the name of all entities
+/// on a tile, when the mouse is hovered over it.
+///
+/// # Arguments
+/// * `ecs`: The [World] struct, required to read the entities names and positions.
+/// * `ctx`: The [Rltk] context in which the tooltips should be drawn.
+///
+pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk) {
     let map = ecs.fetch::<Map>();
     let names = ecs.read_storage::<Name>();
     let positions = ecs.read_storage::<Position>();

@@ -2,10 +2,10 @@
 
 use std::any::Any;
 
-use rltk::{Rltk, VirtualKeyCode, RGB};
+use rltk::{Rltk, VirtualKeyCode};
 use specs::prelude::*;
 
-use super::{config, virtual_key_code_to_string};
+use super::{config, swatch, virtual_key_code_to_string};
 
 /// Enum describing all the results
 /// a [DialogInterface] can return when it is shown.
@@ -134,24 +134,15 @@ impl DialogInterface {
         let x = (config::MAP_WIDTH / 2) - (width / 2);
         let y = (config::MAP_HEIGHT / 2) - (height / 2);
 
+        let (fg, bg) = swatch::DIALOG_FRAME.colors();
+
         // Draw the dialog's box
-        terminal.draw_box(
-            x,
-            y,
-            width,
-            height,
-            RGB::named(rltk::WHITE),
-            RGB::named(rltk::DARK_GOLDENROD),
-        );
+        terminal.draw_box(x, y, width, height, fg, bg);
+
+        let (fg, bg) = swatch::DIALOG_TITLE.colors();
 
         // Draw the dialog's title
-        terminal.print_color(
-            x + 2,
-            y,
-            RGB::named(rltk::WHITE),
-            RGB::named(rltk::BLACK),
-            &format!("{}", self.title),
-        );
+        terminal.print_color(x + 2, y, fg, bg, &format!("{}", self.title));
 
         let mut y_position = y + 2;
 
@@ -172,14 +163,16 @@ impl DialogInterface {
             y_position += 1;
         }
 
+        let (fg, bg) = swatch::DIALOG_OPTION.colors();
+
         // Draw the dialog's options
         for option in self.options.iter() {
             let key_string = virtual_key_code_to_string(option.key);
             terminal.print_color(
                 x + 2,
                 y_position,
-                RGB::named(rltk::YELLOW),
-                RGB::named(rltk::BLACK),
+                fg,
+                bg,
                 &format!("{} - {}", key_string, option.description),
             );
             y_position += 2;
@@ -188,11 +181,13 @@ impl DialogInterface {
         // If the dialog is cancelable, print the `dismiss` option
         // at the bottom.
         if self.cancelable {
+            let (fg, bg) = swatch::DIALOG_DISMISS_BUTTON.colors();
+
             terminal.print_color(
                 x + 2,
                 y + height,
-                RGB::named(rltk::WHITE),
-                RGB::named(rltk::BLACK),
+                fg,
+                bg,
                 &format!("{} - {}", "ESCAPE", "Dismiss"),
             )
         }
