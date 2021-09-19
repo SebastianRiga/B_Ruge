@@ -202,19 +202,21 @@ fn show_inventory(ecs: &mut World, drop: bool) {
         }
     }
 
-    let title = if drop {
-        "Select item to drop".to_string()
-    } else {
-        "Inventory".to_string()
-    };
-
     let message = if options.is_empty() {
-        Some("You backpack is empty...".to_string())
+        if drop {
+            "No items to drop...".to_string()
+        } else {
+            "You backpack is empty...".to_string()
+        }
     } else {
-        None
+        if drop {
+            "Select item to drop".to_string()
+        } else {
+            "Select an item to use/equip".to_string()
+        }
     };
 
-    DialogInterface::register_dialog(ecs, title, message, options, true);
+    DialogInterface::register_dialog(ecs, "Inventory".to_string(), Some(message), options, true);
 }
 
 /// Fetches the player [Entity] from the [World]

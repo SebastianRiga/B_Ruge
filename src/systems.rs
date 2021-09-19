@@ -4,14 +4,10 @@
 use rltk::{a_star_search, console, field_of_view, Point, VirtualKeyCode};
 use specs::prelude::*;
 
-use crate::{
-    DamageCounter, DialogInterface, DialogOption, DropItem, Loot, PickupItem, Potion, Statistics,
-    UsePotion,
-};
-
 use super::{
     pythagoras_distance, Collision, GameLog, Map, MeleeAttack, Monster, Name, Player, Position,
-    ProcessingState, FOV,
+    ProcessingState, FOV, DamageCounter, DialogInterface, DialogOption, DropItem, Loot, PickupItem, Potion, Statistics,
+    UsePotion, exceptions
 };
 
 /// System that handles the field of view
@@ -112,10 +108,9 @@ impl<'a> System<'a> for MonsterAI {
                     target: *player_entity,
                 };
 
-                melee_attacks.insert(entity, melee_attack).expect(&format!(
-                    "Adding melee attack from {} against player failed!",
-                    entity.id()
-                ));
+                let error_message = exceptions::get_add_melee_damage_error_message(&entity);
+
+                melee_attacks.insert(entity, melee_attack).expect(&error_message);
 
                 return;
             }
@@ -158,25 +153,29 @@ pub struct MapDexSystem {}
 
 impl<'a> System<'a> for MapDexSystem {
     type SystemData = (
+        Entities<'a>,
         WriteExpect<'a, Map>,
         ReadStorage<'a, Position>,
         ReadStorage<'a, Collision>,
-        Entities<'a>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (mut map, positions, collisions, entities) = data;
+        let (entities, mut map, positions, collisions) = data;
 
+        // Clear all tile contents and remove all blocked entries
         map.clear_tile_contents();
         map.refresh_blocked_tiles();
 
+        // Iterate through all entities that have a position
         for (position, entity) in (&positions, &entities).join() {
-            let _collision = collisions.get(entity);
+            let collision = collisions.get(entity);
 
-            if let Some(_collision) = _collision {
+            // Refresh blocked tiles if the entity has collision
+            if let Some(_) = collision {
                 map.set_tile_is_blocked(position.x, position.y, true);
             }
 
+            // Refresh tile contents by adding the entity
             map.tile_contents_push(position.x, position.y, entity);
         }
     }

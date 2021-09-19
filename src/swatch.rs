@@ -56,19 +56,19 @@ pub const PLAYER_HEALTH_BAR: Pallet = Pallet(rltk::RED, DEFAULT_BG_COLOR);
 pub const MOUSE_CURSOR: U8Color = rltk::GOLD;
 
 /// Color for the tooltips.
-pub const TOOLTIP: Pallet = Pallet(rltk::WHITE, rltk::DARKRED);
+pub const TOOLTIP: Pallet = Pallet(rltk::WHITE, rltk::GOLDENROD);
 
 /// Color pallet for the health potion item.
 pub const HEALTH_POTION: Pallet = Pallet(rltk::CRIMSON, DEFAULT_BG_COLOR);
 
 /// The color pallet for dialog titles.
-pub const DIALOG_TITLE: Pallet = Pallet(rltk::WHITE, DEFAULT_BG_COLOR);
+pub const DIALOG_TITLE: Pallet = Pallet(rltk::GOLD, DEFAULT_BG_COLOR);
 
 /// The color pallet for dialog dismiss/cancel buttons.
-pub const DIALOG_DISMISS_BUTTON: Pallet = Pallet(rltk::WHITE, DEFAULT_BG_COLOR);
+pub const DIALOG_DISMISS_BUTTON: Pallet = Pallet(rltk::GOLDENROD, DEFAULT_BG_COLOR);
 
 /// The color pallet for dialog frames.
 pub const DIALOG_FRAME: Pallet = Pallet(rltk::WHITE, DEFAULT_BG_COLOR);
 
 /// Color pallet for dialog options.
-pub const DIALOG_OPTION: Pallet = Pallet(rltk::LIGHT_GOLDENROD, DEFAULT_BG_COLOR);
+pub const DIALOG_OPTION: Pallet = Pallet(rltk::GOLDENROD, DEFAULT_BG_COLOR);

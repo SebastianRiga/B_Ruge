@@ -122,7 +122,7 @@ impl DialogInterface {
     pub fn show(&mut self, ecs: &World, terminal: &mut Rltk) -> DialogResult {
         // Calculate the width and height for the dialog
         let message_length = match &self.message {
-            None => 0 as f32,
+            None => 1 as f32,
             Some(message) => message.len() as f32,
         };
 
@@ -159,14 +159,14 @@ impl DialogInterface {
                 terminal.print(x + 2, y_position, chunk);
                 y_position += 1;
             }
-
-            y_position += 1;
         }
+
+        y_position += 1;
 
         let (fg, bg) = swatch::DIALOG_OPTION.colors();
 
         // Draw the dialog's options
-        for option in self.options.iter() {
+        for (_, option) in self.options.iter().enumerate() {
             let key_string = virtual_key_code_to_string(option.key);
             terminal.print_color(
                 x + 2,
@@ -175,6 +175,7 @@ impl DialogInterface {
                 bg,
                 &format!("{} - {}", key_string, option.description),
             );
+
             y_position += 2;
         }
 

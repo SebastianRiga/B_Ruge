@@ -332,7 +332,9 @@ impl Potion {
 
         let usage = UsePotion { potion: *potion };
 
-        usage_intent.insert(*user, usage).expect("");
+        let error_message = exceptions::get_drink_potion_error_message(user, potion);
+
+        usage_intent.insert(*user, usage).expect(&error_message);
     }
 }
 
