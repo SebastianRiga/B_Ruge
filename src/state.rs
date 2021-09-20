@@ -1,14 +1,13 @@
-//! Game state handling module
+//! Game state handling module.
 
 use rltk::{GameState, Rltk};
 use specs::prelude::*;
 
 use super::{
     player_handle_input, ui_controller, DamageSystem, DialogInterface, DialogResult, FOVSystem,
-    ItemCollectionSystem, Map, MapDexSystem, MeleeCombatSystem, MonsterAI, Position,
-    PotionDrinkSystem, Renderable,
+    ItemCollectionSystem, ItemDropSystem, Map, MapDexSystem, MeleeCombatSystem, MonsterAI,
+    Position, PotionDrinkSystem, Renderable,
 };
-use crate::ItemDropSystem;
 
 /// Struct describing the current state of the game
 /// and providing access to the underlying `ECS`
@@ -42,14 +41,20 @@ impl State {
 
         let mut potion_drink_system = PotionDrinkSystem {};
         potion_drink_system.run_now(&self.ecs);
-        
+
         let mut item_drop_system = ItemDropSystem {};
         item_drop_system.run_now(&self.ecs);
 
         self.ecs.maintain();
     }
 
-    fn get_current_processing_state(&self) -> ProcessingState {
+    /// Returns the current [ProcessingState] of the
+    /// system
+    ///
+    /// # Note
+    /// * If a [DialogInterface] has been registered,
+    /// the function always returns [ProcessingState::Dialog].
+    fn get_processing_state(&self) -> ProcessingState {
         let has_dialog = self.ecs.has_value::<DialogInterface>();
 
         let next_processing_state: ProcessingState;
@@ -65,6 +70,17 @@ impl State {
         return next_processing_state;
     }
 
+    /// Updates the saved [ProcessingState] with the passed value,
+    /// by writting it into the `ecs` resource.
+    ///
+    /// # Arguments
+    /// * `new_processing_state`: The new [ProcessingState] of the system.
+    ///
+    fn set_processing_state(&self, new_processing_state: &ProcessingState) {
+        let mut writter = self.ecs.write_resource::<ProcessingState>();
+        *writter = *new_processing_state;
+    }
+
     /// Displays the ui of the game on the screen, this includes
     /// the map, message log, status information etc.
     ///
@@ -72,9 +88,11 @@ impl State {
     /// * `ctx`: The context in which the ui should be drawn.
     ///
     fn show_ui(&self, ctx: &mut Rltk) {
+        // Fetch the map from the ecs and draw it
         let map = self.ecs.fetch::<Map>();
         map.draw(ctx);
 
+        // Draw base ui
         ui_controller::draw_ui(&self.ecs, ctx);
 
         // Get all entities with [Position] and [Renderable]
@@ -82,11 +100,13 @@ impl State {
         let positions = self.ecs.read_storage::<Position>();
         let renderers = self.ecs.read_storage::<Renderable>();
 
+        // Join get all renderables with a position and collect them in a vec for sorting
         let mut entities = (&positions, &renderers).join().collect::<Vec<_>>();
-        entities.sort_by(|&first, &second| {
-            second.1.order.cmp(&first.1.order)
-        });
-        
+
+        // Sort all tuples by the render order set in the renderable
+        entities.sort_by(|&first, &second| second.1.order.cmp(&first.1.order));
+
+        // Render entities
         for (position, renderable) in entities.iter() {
             if map.is_tile_in_fov(position.x, position.y) {
                 ctx.set(
@@ -98,8 +118,20 @@ impl State {
                 )
             }
         }
+
+        // Draw the tooltip as the top most ui element. (Only dialogs are higer)
+        ui_controller::draw_tooltips(&self.ecs, ctx);
     }
 
+    /// Fetches the currently saved dialog from the `ecs` and
+    /// displays it.
+    ///
+    /// # Arguments
+    /// * `ctx`: The [Rltk] context in which the dialog should be drawn.ui_controller
+    ///
+    /// # Panics
+    /// * If no dialog is stored in the `ecs`.
+    ///
     fn show_dialog(&mut self, ctx: &mut Rltk) -> DialogResult {
         let mut dialog = self.ecs.fetch_mut::<DialogInterface>();
         dialog.show(&self.ecs, ctx)
@@ -120,7 +152,7 @@ impl GameState for State {
 
         let mut show_dialog = false;
 
-        let mut next_processing_state = self.get_current_processing_state();
+        let mut next_processing_state = self.get_processing_state();
 
         match next_processing_state {
             ProcessingState::Dialog => {
@@ -148,6 +180,7 @@ impl GameState for State {
             }
         }
 
+        // Remove all dead/defeated entities from the `ecs`
         DamageSystem::clean_up(&mut self.ecs);
 
         // Standard render process
@@ -162,10 +195,7 @@ impl GameState for State {
         }
 
         // Update the processing state
-        {
-            let mut run_writer = self.ecs.write_resource::<ProcessingState>();
-            *run_writer = next_processing_state;
-        }
+        self.set_processing_state(&next_processing_state);
     }
 }
 
@@ -178,9 +208,9 @@ pub enum ProcessingState {
     /// passes control to the player.
     Internal,
 
-    /// The is displaying a dialog and
-    /// is waiting for a key press for
-    /// current dialog.
+    /// The system is displaying a dialog
+    /// andis waiting for a key press on
+    /// the current dialog.
     Dialog,
 
     /// The game is waiting for player

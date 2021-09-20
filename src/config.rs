@@ -3,7 +3,7 @@
 use rltk::console;
 
 /// The current version of the game.
-pub const GAME_VERSION: &'static str = "v0.2.7";
+pub const GAME_VERSION: &'static str = "v0.2.8";
 
 /// The name of the game, needed for display on the
 /// window and in-game.
@@ -33,11 +33,19 @@ pub const MIN_ROOM_SIZE: i32 = 6;
 /// the map.
 pub const MAX_ROOM_SIZE: i32 = 10;
 
-/// The maximum amount of
+/// The maximum amount of monsters, that can be spawned in a single room of the game.
 pub const MAX_MONSTERS_PER_ROOM: i32 = 4;
 
+/// The maximum amount of items, that can be spawned in a single room of the game.
 pub const MAX_ITEMS_PER_ROOM: i32 = 2;
 
+/// Prints the games logo, copyright notice and current
+/// version to the console.
+///
+/// # Notes
+/// * If the game is running in a browser through web assembly, the
+/// message is printed to the browsers debug console.
+///
 pub fn log_starting_message() {
     let message = format!(
         r#"

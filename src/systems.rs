@@ -1,13 +1,13 @@
 //! Module containing all systems of the game
 
+/// TODO: Add inline documentation for system executions
 use rltk::{a_star_search, console, field_of_view, Point, VirtualKeyCode};
 use specs::prelude::*;
 
-use crate::{DamageCounter, DialogInterface, DialogOption, Loot, PickupItem, Potion, Statistics, UsePotion, DropItem};
-
 use super::{
-    Collision, FOV, GameLog, Map, MeleeAttack, Monster, Name, Player, Position,
-    ProcessingState, pythagoras_distance,
+    pythagoras_distance, Collision, GameLog, Map, MeleeAttack, Monster, Name, Player, Position,
+    ProcessingState, FOV, DamageCounter, DialogInterface, DialogOption, DropItem, Loot, PickupItem, Potion, Statistics,
+    UsePotion, exceptions
 };
 
 /// System that handles the field of view
@@ -99,7 +99,7 @@ impl<'a> System<'a> for MonsterAI {
 
         // Iterate through all monsters that have an fov
         for (entity, fov, _monster, position) in
-        (&entities, &mut fovs, &monsters, &mut positions).join()
+            (&entities, &mut fovs, &monsters, &mut positions).join()
         {
             let distance_to_player = pythagoras_distance(&position.to_point(), &*player_position);
 
@@ -108,10 +108,9 @@ impl<'a> System<'a> for MonsterAI {
                     target: *player_entity,
                 };
 
-                melee_attacks.insert(entity, melee_attack).expect(&format!(
-                    "Adding melee attack from {} against player failed!",
-                    entity.id()
-                ));
+                let error_message = exceptions::get_add_melee_damage_error_message(&entity);
+
+                melee_attacks.insert(entity, melee_attack).expect(&error_message);
 
                 return;
             }
@@ -154,25 +153,29 @@ pub struct MapDexSystem {}
 
 impl<'a> System<'a> for MapDexSystem {
     type SystemData = (
+        Entities<'a>,
         WriteExpect<'a, Map>,
         ReadStorage<'a, Position>,
         ReadStorage<'a, Collision>,
-        Entities<'a>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (mut map, positions, collisions, entities) = data;
+        let (entities, mut map, positions, collisions) = data;
 
+        // Clear all tile contents and remove all blocked entries
         map.clear_tile_contents();
         map.refresh_blocked_tiles();
 
+        // Iterate through all entities that have a position
         for (position, entity) in (&positions, &entities).join() {
-            let _collision = collisions.get(entity);
+            let collision = collisions.get(entity);
 
-            if let Some(_collision) = _collision {
+            // Refresh blocked tiles if the entity has collision
+            if let Some(_) = collision {
                 map.set_tile_is_blocked(position.x, position.y, true);
             }
 
+            // Refresh tile contents by adding the entity
             map.tile_contents_push(position.x, position.y, entity);
         }
     }
@@ -272,8 +275,10 @@ impl DamageSystem {
             DialogInterface::register_dialog(
                 ecs,
                 "An untimely end".to_string(),
-                Some("You have died while exploring the dungeon! Restart the game and try again."
-                    .to_string()),
+                Some(
+                    "You have died while exploring the dungeon! Restart the game and try again."
+                        .to_string(),
+                ),
                 vec![DialogOption {
                     description: "Quit the game".to_string(),
                     key: VirtualKeyCode::Q,
@@ -363,26 +368,26 @@ impl<'a> System<'a> for ItemDropSystem {
 
     fn run(&mut self, data: Self::SystemData) {
         let (entities, mut game_log, names, mut loot, mut positions, mut drops) = data;
-        
+
         for (entity, drop) in (&entities, &drops).join() {
-            let entity_position =  positions.get(entity).unwrap();
-            
+            let entity_position = positions.get(entity).unwrap();
+
             let drop_position = Position {
                 x: entity_position.x,
                 y: entity_position.y,
             };
-            
+
             positions.insert(drop.item, drop_position).expect("");
             loot.remove(drop.item);
-            
+
             let entity_name = &names.get(entity).unwrap().name;
             let item_name = &names.get(drop.item).unwrap().name;
-            
+
             let log_message = format!("{} drops {}", entity_name, item_name);
-            
+
             game_log.messages_push(&log_message);
         }
-        
+
         drops.clear();
     }
 }

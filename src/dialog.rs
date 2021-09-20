@@ -2,10 +2,10 @@
 
 use std::any::Any;
 
-use rltk::{Rltk, VirtualKeyCode, RGB};
+use rltk::{Rltk, VirtualKeyCode};
 use specs::prelude::*;
 
-use super::{config, virtual_key_code_to_string};
+use super::{config, swatch, virtual_key_code_to_string};
 
 /// Enum describing all the results
 /// a [DialogInterface] can return when it is shown.
@@ -121,46 +121,32 @@ impl DialogInterface {
     ///
     pub fn show(&mut self, ecs: &World, terminal: &mut Rltk) -> DialogResult {
         // Calculate the width and height for the dialog
-
         let message_length = match &self.message {
-            None => 0 as f32,
-            Some(message) => message.len() as f32
+            None => 1 as f32,
+            Some(message) => message.len() as f32,
         };
-        
+
         let width = (config::MAP_WIDTH as f32 / 2.5) as i32;
         let mut height = (message_length / width as f32).ceil() as i32;
         height += (self.options.len() * 2) as i32 + 3;
 
         // Calculate the x and y coordinate for the dialog
-
         let x = (config::MAP_WIDTH / 2) - (width / 2);
         let y = (config::MAP_HEIGHT / 2) - (height / 2);
 
-        // Draw the dialog's box
+        let (fg, bg) = swatch::DIALOG_FRAME.colors();
 
-        terminal.draw_box(
-            x,
-            y,
-            width,
-            height,
-            RGB::named(rltk::WHITE),
-            RGB::named(rltk::DARK_GOLDENROD),
-        );
+        // Draw the dialog's box
+        terminal.draw_box(x, y, width, height, fg, bg);
+
+        let (fg, bg) = swatch::DIALOG_TITLE.colors();
 
         // Draw the dialog's title
-
-        terminal.print_color(
-            x + 2,
-            y,
-            RGB::named(rltk::WHITE),
-            RGB::named(rltk::BLACK),
-            &format!("{}", self.title),
-        );
+        terminal.print_color(x + 2, y, fg, bg, &format!("{}", self.title));
 
         let mut y_position = y + 2;
-        
-        // Draw the message if present
 
+        // Draw the message if present
         if let Some(message) = &self.message {
             // Split the message into chunks that fit into the dialogs frame
             let message_chunks = message
@@ -173,36 +159,41 @@ impl DialogInterface {
                 terminal.print(x + 2, y_position, chunk);
                 y_position += 1;
             }
-
-            y_position += 1;
         }
-        
-        // Draw the dialog's options
 
-        for option in self.options.iter() {
+        y_position += 1;
+
+        let (fg, bg) = swatch::DIALOG_OPTION.colors();
+
+        // Draw the dialog's options
+        for (_, option) in self.options.iter().enumerate() {
             let key_string = virtual_key_code_to_string(option.key);
             terminal.print_color(
                 x + 2,
                 y_position,
-                RGB::named(rltk::YELLOW),
-                RGB::named(rltk::BLACK),
+                fg,
+                bg,
                 &format!("{} - {}", key_string, option.description),
             );
+
             y_position += 2;
         }
 
+        // If the dialog is cancelable, print the `dismiss` option
+        // at the bottom.
         if self.cancelable {
+            let (fg, bg) = swatch::DIALOG_DISMISS_BUTTON.colors();
+
             terminal.print_color(
                 x + 2,
                 y + height,
-                RGB::named(rltk::WHITE),
-                RGB::named(rltk::BLACK),
+                fg,
+                bg,
                 &format!("{} - {}", "ESCAPE", "Dismiss"),
             )
         }
 
         // Listen for key press event
-
         if let Some(key) = terminal.key {
             let selection = self.options.iter_mut().find(|element| element.key == key);
 
@@ -211,6 +202,8 @@ impl DialogInterface {
                 return DialogResult::Consumed;
             }
 
+            // If the dialog is cancelable, check if the `escape` key
+            // was pressed.
             if self.cancelable {
                 if key == VirtualKeyCode::Escape {
                     return DialogResult::Consumed;
@@ -218,6 +211,8 @@ impl DialogInterface {
             }
         }
 
+        // If no key was pressed by the user, return the waiting state to try again in
+        // the next frame
         DialogResult::Waiting
     }
 }

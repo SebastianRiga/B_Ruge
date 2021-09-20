@@ -74,6 +74,16 @@ fn player_move(delta_x: i32, delta_y: i32, ecs: &mut World) {
     }
 }
 
+/// Checks if the player has used `click-to-move` to set
+/// a path for the player [Entity] by poping the path [Vec]
+/// retreived from the passed `ecs`, if a next step is available
+/// for the stored path, a [Some] containing an `(x, y)` tuple with
+/// the coordinates for the next movement is returned. If no pathing
+/// information is available, [None] is returned.
+///
+/// # Arguments
+/// * `ecs`: The [World] in which the pathing [Vec] is stored.
+///
 fn player_move_click(ecs: &mut World) -> Option<(i32, i32)> {
     let map = ecs.write_resource::<Map>();
     let player_ecs_position = ecs.write_resource::<Point>();
@@ -91,6 +101,16 @@ fn player_move_click(ecs: &mut World) -> Option<(i32, i32)> {
     }
 }
 
+/// Creates a new `click-to-move` path for the player [Entity]
+/// after the player has click a tile with mouse, using the
+/// A* algorithm and stores it in the `ecs` reference. The
+/// path is then walked iteratively by the player [Entity],
+/// with each step costing a turn.
+///
+/// # Arguments
+/// * `ecs`: The [World] in which all [Entity] structs are stored.
+/// * `ctx`: The [Rltk] context in which the mouse click happned.
+///
 fn handle_new_click_to_move(ecs: &mut World, ctx: &Rltk) {
     let fovs = ecs.read_storage::<FOV>();
     let mut map = ecs.write_resource::<Map>();
@@ -119,6 +139,12 @@ fn handle_new_click_to_move(ecs: &mut World, ctx: &Rltk) {
     }
 }
 
+/// Creates a new [PickupItem] request
+/// for the player [Entity].
+///
+/// # Arguments
+/// `ecs`: The [World] in which the player is stored.
+///
 fn pick_up_item(ecs: &mut World) {
     let player;
     {
@@ -129,6 +155,17 @@ fn pick_up_item(ecs: &mut World) {
     Item::pick_up(ecs, &player);
 }
 
+/// Registers a new [DialogInterface] that contains
+/// the item [Entity] structs the player currently
+/// has in its inventory. If `drop` is true,
+/// the player can drop items from the inventory,
+/// otherwise he uses them.
+///
+/// # Arguments
+/// * `ecs`: The [World] in which the player is stored.
+/// * `drop`: Flag indicating whether or not the player
+/// wants to drop items or use them.
+///
 fn show_inventory(ecs: &mut World, drop: bool) {
     let mut options: Vec<DialogOption> = Vec::new();
 
@@ -152,7 +189,7 @@ fn show_inventory(ecs: &mut World, drop: bool) {
                     let item = *args[0].downcast_ref::<Entity>().unwrap();
                     let player = *args[1].downcast_ref::<Entity>().unwrap();
                     let is_dropping_item = *args[2].downcast_ref::<bool>().unwrap();
-                    
+
                     if is_dropping_item {
                         Item::drop_item(world, &player, &item);
                     } else {
@@ -164,22 +201,34 @@ fn show_inventory(ecs: &mut World, drop: bool) {
             counter += 1;
         }
     }
-    
-    let title = if drop {
-        "Select item to drop".to_string()
-    } else {
-        "Inventory".to_string()
-    };
 
     let message = if options.is_empty() {
-        Some("You backpack is empty...".to_string())
+        if drop {
+            "No items to drop...".to_string()
+        } else {
+            "You backpack is empty...".to_string()
+        }
     } else {
-       None
+        if drop {
+            "Select item to drop".to_string()
+        } else {
+            "Select an item to use/equip".to_string()
+        }
     };
 
-    DialogInterface::register_dialog(ecs, title, message, options, true);
+    DialogInterface::register_dialog(ecs, "Inventory".to_string(), Some(message), options, true);
 }
 
+/// Fetches the player [Entity] from the [World]
+/// and returns it.
+///
+/// # Arguments
+/// * `ecs`: The [World] in which the player [Entity] is stored.
+///
+/// # Panics
+/// * If the passed [World] does not contain a player
+/// entity.
+///
 fn get_player_entity(ecs: &World) -> Fetch<Entity> {
     ecs.fetch::<Entity>()
 }
@@ -229,10 +278,12 @@ pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> Processing
 
             VirtualKeyCode::Numpad3 | VirtualKeyCode::X => player_move(1, 1, &mut game_state.ecs),
 
+            // Inventory interactions
             VirtualKeyCode::G => pick_up_item(&mut game_state.ecs),
 
             VirtualKeyCode::I => show_inventory(&mut game_state.ecs, ctx.shift),
 
+            // Menus
             VirtualKeyCode::Escape => {
                 DialogInterface::register_dialog(
                     &mut game_state.ecs,
@@ -264,6 +315,8 @@ pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> Processing
 
             _ => return ProcessingState::WaitingForInput,
         },
+        // If no keyboard key was pressed, check if the player has clicked
+        // selected a position with the mouse.
         None => {
             if ctx.left_click {
                 handle_new_click_to_move(&mut game_state.ecs, ctx);

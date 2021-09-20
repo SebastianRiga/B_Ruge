@@ -9,14 +9,14 @@ pub const DEFAULT_BG_COLOR: (u8, u8, u8) = (0, 0, 0);
 type U8Color = (u8, u8, u8);
 
 /// A struct describing the foreground and
-/// background color of an entity or tiles.
+/// background color of an entity or tile.
 pub struct Pallet(pub U8Color, pub U8Color);
 
 impl Pallet {
     /// Transforms the [Pallet]'s foreground
     /// and background [U8Color] tuples to
     /// [RGB] structs and returns them in a tuple
-    /// in the same order `(fg, bg)`.
+    /// in the same order of `(fg, bg)`.
     pub fn colors(&self) -> (RGB, RGB) {
         let fg = self.0;
         let bg = self.1;
@@ -27,8 +27,6 @@ impl Pallet {
         )
     }
 }
-
-// (220, 206, 26)
 
 /// The player entity's color.
 pub const PLAYER: Pallet = Pallet(rltk::GOLD, DEFAULT_BG_COLOR);
@@ -58,7 +56,19 @@ pub const PLAYER_HEALTH_BAR: Pallet = Pallet(rltk::RED, DEFAULT_BG_COLOR);
 pub const MOUSE_CURSOR: U8Color = rltk::GOLD;
 
 /// Color for the tooltips.
-pub const TOOLTIP: Pallet = Pallet(rltk::WHITE, rltk::DARKRED);
+pub const TOOLTIP: Pallet = Pallet(rltk::WHITE, rltk::GOLDENROD);
 
 /// Color pallet for the health potion item.
 pub const HEALTH_POTION: Pallet = Pallet(rltk::CRIMSON, DEFAULT_BG_COLOR);
+
+/// The color pallet for dialog titles.
+pub const DIALOG_TITLE: Pallet = Pallet(rltk::GOLD, DEFAULT_BG_COLOR);
+
+/// The color pallet for dialog dismiss/cancel buttons.
+pub const DIALOG_DISMISS_BUTTON: Pallet = Pallet(rltk::GOLDENROD, DEFAULT_BG_COLOR);
+
+/// The color pallet for dialog frames.
+pub const DIALOG_FRAME: Pallet = Pallet(rltk::WHITE, DEFAULT_BG_COLOR);
+
+/// Color pallet for dialog options.
+pub const DIALOG_OPTION: Pallet = Pallet(rltk::GOLDENROD, DEFAULT_BG_COLOR);

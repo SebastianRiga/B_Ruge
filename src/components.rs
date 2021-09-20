@@ -99,7 +99,7 @@ pub struct Renderable {
 
     /// Background color of the entity.
     pub bg: RGB,
-    
+
     /// Place in the rendering order
     pub order: i32,
 }
@@ -215,8 +215,7 @@ impl DamageCounter {
                 damage_values: vec![amount],
             };
 
-            let on_error_message =
-                exceptions::get_add_damage_amount_error_message(&target, amount);
+            let on_error_message = exceptions::get_add_damage_amount_error_message(&target, amount);
 
             store
                 .insert(target, damage_counter)
@@ -290,7 +289,14 @@ impl Item {
         };
     }
 
-    /// TODO: Add documentation
+    /// Drops an [Item] [Entity] from the inventory of the `owner`
+    /// [Entity].
+    ///
+    /// # Arguments
+    /// * `ecs`: The [World] in which both the `owner` and `item` are stored.
+    /// * `owner`: The `owner` [Entity] of the `item`.
+    /// * `item`: The [Item] that the `owner` wants to drop.
+    ///
     pub fn drop_item(ecs: &World, owner: &Entity, item: &Entity) {
         let mut drop_intent = ecs.write_storage::<DropItem>();
 
@@ -315,18 +321,20 @@ pub struct Potion {
 impl Potion {
     /// Adds a request to the passed `ecs`, that the `user` [Entity] wants to
     /// drink the supplied `potion` [Entity].
-    /// 
+    ///
     /// # Arguments
     /// * `ecs`: The overarching `ecs` to write to.
     /// * `user`: The [Entity] that wants to drink the `potion`.
     /// * `potion`: The `potion` [Entity] the `user` wants to drink.
-    /// 
+    ///
     pub fn drink(ecs: &World, user: &Entity, potion: &Entity) {
         let mut usage_intent = ecs.write_storage::<UsePotion>();
-        
+
         let usage = UsePotion { potion: *potion };
 
-        usage_intent.insert(*user, usage).expect("");
+        let error_message = exceptions::get_drink_potion_error_message(user, potion);
+
+        usage_intent.insert(*user, usage).expect(&error_message);
     }
 }
 
