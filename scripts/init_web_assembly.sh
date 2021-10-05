@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # We exit on any error, since this script is also run in the ci/cd
 set -e

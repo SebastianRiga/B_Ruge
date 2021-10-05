@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # We exit on any error, since this script is also run in the ci/cd
 set -e
@@ -9,22 +9,22 @@ set -e
 
 # Naming schemas
 
-resource_package_name="res"
-resource_base_module="mod.rs"
-resource_folder_name="resources"
+declare resource_package_name="res"
+declare resource_base_module="mod.rs"
+declare resource_folder_name="resources"
 
 # Folders
 
-out_folder="$PWD/src/$resource_package_name"
-resource_folder="$PWD/$resource_folder_name"
+declare out_folder="$PWD/src/$resource_package_name"
+declare resource_folder="$PWD/$resource_folder_name"
 
 ########################################################################################################################
 # Functions
 ########################################################################################################################
 
 create_base_module() {
-  modules=("$@")
-  output_file="$out_folder/$resource_base_module"
+  local modules=("$@")
+  local output_file="$out_folder/$resource_base_module"
 
   printf "//! Base resource module, bundling all resource sub-modules.\n\n" >> "$output_file"
 
@@ -35,9 +35,9 @@ create_base_module() {
 }
 
 create_sub_module() {
-  module_name="$1"
-  output_file="$out_folder/$module_name.rs"
-  input_folder="$resource_folder/$module_name"
+  local module_name="$1"
+  local output_file="$out_folder/$module_name.rs"
+  local input_folder="$resource_folder/$module_name"
 
   readarray -t files <<< "$(find "$input_folder" -mindepth 1 -maxdepth 1 -type f -printf "%P\n")"
 

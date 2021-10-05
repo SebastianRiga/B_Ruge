@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # We exit on any error, since this script is also run in the ci/cd
 set -e
@@ -9,10 +9,17 @@ set -e
 
 # Temporary path to store the cookie file used for anonymous authentication against
 # google drive.
-cookie_file="/tmp/d_cookie"
+declare cookie_file="/tmp/d_cookie"
 
 # Static url to request file downloads from google drive.
-d_download_url="https://drive.google.com/uc?export=download"
+declare d_download_url="https://drive.google.com/uc?export=download"
+
+########################################################################################################################
+# Script variables
+########################################################################################################################
+
+declare d_item_id
+declare d_cookie
 
 ########################################################################################################################
 # Functions
