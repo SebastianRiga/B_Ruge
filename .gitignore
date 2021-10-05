@@ -1,2 +1,9 @@
+# Build output
 /target
 /web/out
+
+# Generated files
+src/audio
+
+# Resources
+resources
