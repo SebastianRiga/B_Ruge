@@ -114,7 +114,6 @@ fn main() -> rltk::BError {
             error
         ),
         Ok(_) => {
-            audio::play_background(res::music::HELLISH_WAV);
             audio::play_ambiance(res::ambiance::DUNGEON01_WAV);
         }
     }
