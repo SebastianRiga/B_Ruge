@@ -1,5 +1,7 @@
 //! Module for all pod structures
 
+use rltk::Point;
+
 use super::config;
 
 /// Struct storing the games message stream.
@@ -108,4 +110,22 @@ impl PlayerPathing {
     pub fn clear(&mut self) {
         self.steps.clear();
     }
+}
+
+/// Struct describing the selection result of an skill/spell/item
+/// that requires targeting by the player.
+#[derive(Debug)]
+pub struct TargetSelectionResult(pub TargetSelectionState, pub Option<Point>);
+
+/// Enum defining all values that can be returned
+/// as a result by a [TargetSelection].
+#[derive(PartialEq, Debug)]
+pub enum TargetSelectionState {
+    /// Player has canceled the target selection.
+    Cancel,
+    /// Player is currently selecting
+    /// a target.
+    Selecting,
+    /// Player has selected a target.
+    Selected,
 }

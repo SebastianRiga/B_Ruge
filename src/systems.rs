@@ -5,10 +5,11 @@ use rltk::{a_star_search, console, field_of_view, Point, VirtualKeyCode};
 use specs::prelude::*;
 
 use super::{
-    pythagoras_distance, Collision, GameLog, Map, MeleeAttack, Monster, Name, Player, Position,
-    ProcessingState, FOV, DamageCounter, DialogInterface, DialogOption, DropItem, Loot, PickupItem, Potion, Statistics,
-    UsePotion, exceptions
+    exceptions, pythagoras_distance, Collision, DamageCounter, DialogInterface, DialogOption,
+    DropItem, GameLog, HealingEffect, Loot, Map, MeleeAttack, Monster, Name, PickupItem, Player,
+    Position, ProcessingState, Statistics, UseItem, FOV, audio, r
 };
+use crate::{Consumable, DamageEffect, SoundEffect};
 
 /// System that handles the field of view
 /// processing. See the implementation below
@@ -110,7 +111,9 @@ impl<'a> System<'a> for MonsterAI {
 
                 let error_message = exceptions::get_add_melee_damage_error_message(&entity);
 
-                melee_attacks.insert(entity, melee_attack).expect(&error_message);
+                melee_attacks
+                    .insert(entity, melee_attack)
+                    .expect(&error_message);
 
                 return;
             }
@@ -283,7 +286,10 @@ impl DamageSystem {
                     description: "Quit the game".to_string(),
                     key: VirtualKeyCode::Q,
                     args: vec![],
-                    callback: Box::new(|_, ctx, _| ctx.quit()),
+                    callback: Box::new(|_, ctx, _| {
+                        ctx.quit();
+                        ProcessingState::Internal
+                    }),
                 }],
                 false,
             )
@@ -311,7 +317,7 @@ impl<'a> System<'a> for DamageSystem {
     }
 }
 
-/// System that handles the [Pickup] requests of all
+/// System that handles the `PickupItem` requests of all
 /// [Entity] objects and adds the corresponding Item to their
 /// inventory by registering a respective [Loot] component.
 pub struct ItemCollectionSystem {}
@@ -352,7 +358,7 @@ impl<'a> System<'a> for ItemCollectionSystem {
 
 /// System that handles [DropItem] requests
 /// of all [Entity] objects and removes the
-/// corresponding [Item] from their inventory
+/// corresponding `Item` from their inventory
 /// and set it [Position] to render it on the map.
 pub struct ItemDropSystem {}
 
@@ -392,46 +398,110 @@ impl<'a> System<'a> for ItemDropSystem {
     }
 }
 
-/// System used for processing [UsePotion] requests in
+/// System used for processing [UseItem] requests in
 /// the `ecs`.
-pub struct PotionDrinkSystem {}
+pub struct ItemUseSystem {}
 
-impl<'a> System<'a> for PotionDrinkSystem {
+impl<'a> System<'a> for ItemUseSystem {
     type SystemData = (
         Entities<'a>,
+        ReadExpect<'a, Map>,
         WriteExpect<'a, GameLog>,
         ReadStorage<'a, Name>,
-        ReadStorage<'a, Potion>,
-        WriteStorage<'a, UsePotion>,
+        ReadStorage<'a, Consumable>,
+        ReadStorage<'a, HealingEffect>,
+        ReadStorage<'a, DamageEffect>,
+        ReadStorage<'a, SoundEffect>,
+        WriteStorage<'a, UseItem>,
         WriteStorage<'a, Statistics>,
+        WriteStorage<'a, DamageCounter>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (entities, mut game_log, names, potions, mut use_potion, mut statistics) = data;
+        let (
+            entities,
+            map,
+            mut game_log,
+            names,
+            consumables,
+            healing_effects,
+            damage_effects,
+            sound_effects,
+            mut use_items,
+            mut statistics,
+            mut damage_counters,
+        ) = data;
 
-        for (entity, usage, statistic) in (&entities, &use_potion, &mut statistics).join() {
-            let potion_name = names.get(usage.potion);
-            let user_name = names.get(entity);
-            let potion = potions.get(usage.potion);
+        for (entity, use_item_request, statistic) in (&entities, &use_items, &mut statistics).join()
+        {
+            let user_name = names.get(entity).expect("");
+            let item_name = names.get(use_item_request.item).expect("");
 
-            if let Some(potion) = potion {
-                statistic.hp = i32::min(statistic.hp_max, statistic.hp + potion.healing_amount);
+            // Check if the item has an associated sound effect
+            if let Some(sound_effect) = sound_effects.get(use_item_request.item) {
+                sound_effect.play();
+            }
+
+            // Check if the used item is a healing item
+
+            if let Some(healing_effect) = healing_effects.get(use_item_request.item) {
+                statistic.hp = i32::min(
+                    statistic.hp_max,
+                    statistic.hp + healing_effect.healing_amount,
+                );
 
                 let message = format!(
-                    "{} drinks the {}, restoring {} health.",
-                    user_name.unwrap().name,
-                    potion_name.unwrap().name,
-                    potion.healing_amount
+                    "{} uses the {}, restoring {} health.",
+                    user_name.name, item_name.name, healing_effect.healing_amount
                 );
                 game_log.messages_push(&message);
+            }
 
-                entities.delete(usage.potion).expect(&format!(
+            // Check if the item is inflicting damage to a target
+
+            if let Some(damage_effect) = damage_effects.get(use_item_request.item) {
+                let target_point = use_item_request.target.expect("");
+                let hit_entities = map.tile_contents_get(target_point.x, target_point.y);
+
+                if hit_entities.is_empty() {
+                    let message = format!(
+                        "{} uses {}, but hits nothing.",
+                        user_name.name, item_name.name,
+                    );
+
+                    game_log.messages_push(&message);
+                } else {
+                    for target in hit_entities.iter() {
+                        let target_name = names.get(*target).expect("");
+                        DamageCounter::add_damage_taken(
+                            &mut damage_counters,
+                            *target,
+                            damage_effect.damage_amount,
+                        );
+
+                        let message = format!(
+                            "{} uses {}, hitting {} for {} damage.",
+                            user_name.name,
+                            item_name.name,
+                            target_name.name,
+                            damage_effect.damage_amount
+                        );
+
+                        game_log.messages_push(&message);
+                    }
+                }
+            }
+
+            // Check if the used item is a consumable
+
+            if let Some(_) = consumables.get(use_item_request.item) {
+                entities.delete(use_item_request.item).expect(&format!(
                     "Unable to delete potion with entity id {} after usage.",
-                    usage.potion.id()
+                    use_item_request.item.id()
                 ));
             }
         }
 
-        use_potion.clear();
+        use_items.clear();
     }
 }

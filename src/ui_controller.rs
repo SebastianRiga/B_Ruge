@@ -1,11 +1,12 @@
 //! Module containing all UI functionality of the game
 
-use rltk::{Point, Rltk};
+use rltk::{Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 
 use super::{
     config, swatch, timestamp_formatted, GameLog, Map, Name, Player, Position, Statistics,
 };
+use crate::{pythagoras_distance, TargetSelectionResult, TargetSelectionState, FOV};
 
 /// Draws the ui of the game in the given `ctx`.
 ///
@@ -79,23 +80,53 @@ fn draw_player_health(ecs: &World, ctx: &mut Rltk) {
     let statistics = ecs.read_storage::<Statistics>();
 
     for (_, statistic) in (&players, &statistics).join() {
-        let health = format!(" HP: {} / {} ", statistic.hp, statistic.hp_max);
-
-        let (fg, bg) = swatch::PLAYER_HEALTH_TEXT.colors();
-
-        ctx.print_color(12, config::MAP_HEIGHT, fg, bg, &health);
+        // Draw the players health bar
 
         let (fg, bg) = swatch::PLAYER_HEALTH_BAR.colors();
+        let player_health_bar_width = (config::MAP_WIDTH / 2) - 1;
 
         ctx.draw_bar_horizontal(
-            28,
+            1,
             config::MAP_HEIGHT,
-            50,
+            player_health_bar_width,
             statistic.hp,
             statistic.hp_max,
             fg,
             bg,
         );
+
+        // Draw the players health text
+
+        let (fg, bg) = swatch::PLAYER_HEALTH_TEXT.colors();
+        let health = format!("HP: {}/{}", statistic.hp, statistic.hp_max);
+        let health_text_x = (player_health_bar_width / 2) - (health.len() / 2) as i32;
+
+        ctx.print_color(health_text_x, config::MAP_HEIGHT, fg, bg, &health);
+
+        // Draw player mana bar
+
+        let (fg, bg) = swatch::PLAYER_MANA_BAR.colors();
+        let player_mana_bar_x = (config::MAP_WIDTH / 2) + 1;
+        let player_mana_bar_width = (config::MAP_WIDTH - 1) - player_mana_bar_x;
+
+        ctx.draw_bar_horizontal(
+            player_mana_bar_x,
+            config::MAP_HEIGHT,
+            player_mana_bar_width,
+            10,
+            10,
+            fg,
+            bg,
+        );
+
+        // Draw player mana text
+
+        let mana = format!("MP: {}/{}", 10, 10);
+        let (fg, bg) = swatch::PLAYER_MANA_TEXT.colors();
+        let mana_text_x =
+            (player_mana_bar_x + (player_mana_bar_width / 2)) - (mana.len() / 2) as i32;
+
+        ctx.print_color(mana_text_x, config::MAP_HEIGHT, fg, bg, &mana);
     }
 }
 
@@ -105,9 +136,6 @@ fn draw_player_health(ecs: &World, ctx: &mut Rltk) {
 /// # Arguments
 /// * `ctx`: The [Rltk] context in which the mouse cursor
 /// should be highlighted.
-///
-/// # See also
-/// * [swatch::Mouse_Cursor]
 ///
 fn draw_mouse_cursor(ctx: &mut Rltk) {
     let (x, y) = ctx.mouse_pos();
@@ -155,7 +183,7 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk) {
     let mut y_position = y;
     let (fg, bg) = swatch::TOOLTIP.colors();
 
-    if x > 40 {
+    if x > (config::MAP_WIDTH / 2) {
         let start_x = x - max_width + 1;
         let arrow_position = Point::new(x - 2, y);
 
@@ -188,4 +216,65 @@ pub fn draw_tooltips(ecs: &World, ctx: &mut Rltk) {
             &"<-".to_string(),
         );
     }
+}
+
+pub fn draw_player_ranged_targeting(
+    range: i32,
+    ecs: &World,
+    ctx: &mut Rltk,
+) -> TargetSelectionResult {
+    let fovs = ecs.read_storage::<FOV>();
+    let player_entity = ecs.fetch::<Entity>();
+    let player_position = ecs.fetch::<Point>();
+
+    let mut cells_in_range = Vec::new();
+
+    if let Some(player_fov) = fovs.get(*player_entity) {
+        for point in player_fov.content.iter() {
+            let distance_to_point = pythagoras_distance(&*player_position, point);
+
+            if distance_to_point <= range as f32 {
+                ctx.set_bg(point.x, point.y, swatch::TILE_SELECTION);
+                cells_in_range.push(point);
+            }
+        }
+    } else {
+        return TargetSelectionResult(TargetSelectionState::Cancel, None);
+    }
+
+    let mouse_position = ctx.mouse_point();
+
+    let target = cells_in_range
+        .iter()
+        .find(|point| point.x == mouse_position.x && point.y == mouse_position.y);
+
+    if let Some(target) = target {
+        ctx.set_bg(
+            mouse_position.x,
+            mouse_position.y,
+            swatch::TILE_SELECTION_SUCCESS,
+        );
+
+        if ctx.left_click && ctx.shift {
+            return TargetSelectionResult(TargetSelectionState::Selected, Some(*target.clone()));
+        }
+    } else {
+        ctx.set_bg(
+            mouse_position.x,
+            mouse_position.y,
+            swatch::TILE_SELECTION_FAILED,
+        );
+
+        if ctx.left_click && ctx.shift {
+            return TargetSelectionResult(TargetSelectionState::Cancel, None);
+        }
+    }
+
+    if let Some(key) = ctx.key {
+        if key == VirtualKeyCode::Escape {
+            return TargetSelectionResult(TargetSelectionState::Cancel, None);
+        }
+    }
+
+    TargetSelectionResult(TargetSelectionState::Selecting, None)
 }

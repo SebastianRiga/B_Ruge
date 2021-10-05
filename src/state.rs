@@ -5,8 +5,8 @@ use specs::prelude::*;
 
 use super::{
     player_handle_input, ui_controller, DamageSystem, DialogInterface, DialogResult, FOVSystem,
-    ItemCollectionSystem, ItemDropSystem, Map, MapDexSystem, MeleeCombatSystem, MonsterAI,
-    Position, PotionDrinkSystem, Renderable,
+    ItemCollectionSystem, ItemDropSystem, ItemUseSystem, Map, MapDexSystem, MeleeCombatSystem,
+    MonsterAI, Position, Renderable, TargetSelectionState, UseItem,
 };
 
 /// Struct describing the current state of the game
@@ -39,7 +39,7 @@ impl State {
         let mut item_collection_system = ItemCollectionSystem {};
         item_collection_system.run_now(&self.ecs);
 
-        let mut potion_drink_system = PotionDrinkSystem {};
+        let mut potion_drink_system = ItemUseSystem {};
         potion_drink_system.run_now(&self.ecs);
 
         let mut item_drop_system = ItemDropSystem {};
@@ -76,9 +76,9 @@ impl State {
     /// # Arguments
     /// * `new_processing_state`: The new [ProcessingState] of the system.
     ///
-    fn set_processing_state(&self, new_processing_state: &ProcessingState) {
-        let mut writter = self.ecs.write_resource::<ProcessingState>();
-        *writter = *new_processing_state;
+    fn update_processing_state(&self, new_processing_state: &ProcessingState) {
+        let mut writer = self.ecs.write_resource::<ProcessingState>();
+        *writer = *new_processing_state;
     }
 
     /// Displays the ui of the game on the screen, this includes
@@ -118,9 +118,6 @@ impl State {
                 )
             }
         }
-
-        // Draw the tooltip as the top most ui element. (Only dialogs are higer)
-        ui_controller::draw_tooltips(&self.ecs, ctx);
     }
 
     /// Fetches the currently saved dialog from the `ecs` and
@@ -150,6 +147,9 @@ impl GameState for State {
         // Clear screen
         ctx.cls();
 
+        // Standard render process
+        self.show_ui(ctx);
+
         let mut show_dialog = false;
 
         let mut next_processing_state = self.get_processing_state();
@@ -173,6 +173,28 @@ impl GameState for State {
                 self.ecs.maintain();
                 next_processing_state = ProcessingState::MonsterTurn;
             }
+            ProcessingState::PlayerIsTargeting { range, entity } => {
+                let result = ui_controller::draw_player_ranged_targeting(range, &self.ecs, ctx);
+
+                next_processing_state = match result.0 {
+                    TargetSelectionState::Cancel => ProcessingState::WaitingForInput,
+                    TargetSelectionState::Selecting => {
+                        ProcessingState::PlayerIsTargeting { range, entity }
+                    }
+                    TargetSelectionState::Selected => {
+                        let player = self.ecs.fetch::<Entity>();
+
+                        let usage = UseItem {
+                            item: entity,
+                            target: result.1,
+                        };
+
+                        let mut usage_intent = self.ecs.write_storage::<UseItem>();
+                        usage_intent.insert(*player, usage).expect("");
+                        ProcessingState::PlayerTurn
+                    }
+                }
+            }
             ProcessingState::MonsterTurn => {
                 self.run_systems();
                 self.ecs.maintain();
@@ -183,25 +205,28 @@ impl GameState for State {
         // Remove all dead/defeated entities from the `ecs`
         DamageSystem::clean_up(&mut self.ecs);
 
-        // Standard render process
-        self.show_ui(ctx);
+        // Draw the tooltip as the top most ui element. (Only dialogs are higher!)
+        ui_controller::draw_tooltips(&self.ecs, ctx);
 
         // If there is a dialog to display, show it and read the result
         if show_dialog {
-            if self.show_dialog(ctx) == DialogResult::Consumed {
-                self.ecs.remove::<DialogInterface>();
-                next_processing_state = ProcessingState::Internal;
+            match self.show_dialog(ctx) {
+                DialogResult::Consumed { next_state } => {
+                    self.ecs.remove::<DialogInterface>();
+                    next_processing_state = next_state;
+                }
+                DialogResult::Waiting => {}
             }
         }
 
         // Update the processing state
-        self.set_processing_state(&next_processing_state);
+        self.update_processing_state(&next_processing_state);
     }
 }
 
 /// Enum describing all processing states
 /// the game can be in during execution.
-#[derive(PartialEq, Copy, Clone)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum ProcessingState {
     /// Executes all internal systems
     /// and functions before the game
@@ -220,6 +245,17 @@ pub enum ProcessingState {
     /// Executes the action
     /// input by the player.
     PlayerTurn,
+
+    /// The player is using a skill/spell/item that requires selecting
+    /// a target.
+    PlayerIsTargeting {
+        /// The range of the skill/spell/item, the player
+        /// is targeting with.
+        range: i32,
+
+        /// The [Entity] the player is using.
+        entity: Entity,
+    },
 
     /// Executes the monsters
     /// actions.

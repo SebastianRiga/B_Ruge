@@ -22,3 +22,5 @@ specs = "0.17.0"
 specs-derive = "0.4.1"
 getrandom = { version = "0.2.3", features = ["js"] }
 chrono = { version = "0.4.19", features = ["wasmbind"] }
+rodio = { version = "0.14.0", features = ["wasm-bindgen", "wav", "claxon", "flac", "vorbis", "lewton"], default-features = false }
+lazy_static = "1.4.0"

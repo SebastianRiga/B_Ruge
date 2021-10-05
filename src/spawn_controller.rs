@@ -8,7 +8,7 @@ use specs::prelude::*;
 ///
 /// # Arguments
 /// * `ecs`: The [World] in which the [Entity] structs will be saved.
-/// * `room`: The room from the [Map] in which the monsters and items
+/// * `room`: The room from the `Map` in which the monsters and items
 /// should be spawned.
 ///
 /// # See also
@@ -34,7 +34,7 @@ pub fn spawn_in_room(ecs: &mut World, room: &Rectangle) {
 
     // Create items
     for position in item_spawn_positions.iter().copied() {
-        entity_factory::new_health_potion(ecs, position);
+        entity_factory::random_item(ecs, position);
     }
 }
 
@@ -46,7 +46,7 @@ pub fn spawn_in_room(ecs: &mut World, room: &Rectangle) {
 /// # Arguments
 /// * `ecs`: The [World] in which the entities should be stored.
 /// * `max_placements`: Maximum amount of entities that can be placed.
-/// * `room`: Reference to the room [Rectangle] from the [Map], in which
+/// * `room`: Reference to the room [Rectangle] from the `Map`, in which
 /// the entities should be placed.
 /// * `container`: [Vec] storing the spawn positions of the monsters.
 ///  

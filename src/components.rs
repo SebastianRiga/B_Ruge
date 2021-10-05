@@ -4,7 +4,7 @@ use rltk::{FontCharType, Point, RGB};
 use specs::prelude::*;
 use specs_derive::*;
 
-use super::{exceptions, GameLog};
+use super::{audio, exceptions, GameLog};
 
 /// Component to describe the position
 /// of a game entity in the game.
@@ -307,32 +307,24 @@ impl Item {
             .insert(*owner, drop_item)
             .expect(&on_error_message);
     }
-}
 
-/// Component describing a drinkable potion
-/// that heals the players hp.
-#[derive(Component, Debug)]
-pub struct Potion {
-    /// The amount of health, the [Potion]
-    /// restores for the [Entity] that drinks it.
-    pub healing_amount: i32,
-}
-
-impl Potion {
     /// Adds a request to the passed `ecs`, that the `user` [Entity] wants to
-    /// drink the supplied `potion` [Entity].
+    /// use the supplied `item` [Entity].
     ///
     /// # Arguments
     /// * `ecs`: The overarching `ecs` to write to.
-    /// * `user`: The [Entity] that wants to drink the `potion`.
-    /// * `potion`: The `potion` [Entity] the `user` wants to drink.
+    /// * `user`: The [Entity] that wants to use the `item`.
+    /// * `item`: The `item` [Entity] the `user` wants to use.
     ///
-    pub fn drink(ecs: &World, user: &Entity, potion: &Entity) {
-        let mut usage_intent = ecs.write_storage::<UsePotion>();
+    pub fn use_item(ecs: &World, user: &Entity, item: &Entity) {
+        let mut usage_intent = ecs.write_storage::<UseItem>();
 
-        let usage = UsePotion { potion: *potion };
+        let usage = UseItem {
+            item: *item,
+            target: None,
+        };
 
-        let error_message = exceptions::get_drink_potion_error_message(user, potion);
+        let error_message = exceptions::get_drink_potion_error_message(user, item);
 
         usage_intent.insert(*user, usage).expect(&error_message);
     }
@@ -368,11 +360,61 @@ pub struct DropItem {
 
 /// Component used for communication with the
 /// PotionDrinkSystem to indicate, that an
-/// [Entity] wants to drink a [Potion].
+/// [Entity] wants to use an [Item].
 #[derive(Component, Debug)]
-pub struct UsePotion {
-    /// The [Potion] the [Entity] wants to consume.
-    pub potion: Entity,
+pub struct UseItem {
+    /// The `Item` the [Entity] wants to consume.
+    pub item: Entity,
+
+    /// The target [Point] selected for the
+    /// used `item`. Needed if the `item` is
+    /// `ranged` and requires targeting by
+    /// the player before using.
+    pub target: Option<Point>,
+}
+
+/// Component marking an entity as a consumable, meaning
+/// it will be removed from the game once it has been used.
+#[derive(Component, Debug)]
+pub struct Consumable {}
+
+/// Component for all ranged effects, e.g. casting, scrolls, ranged attacks
+#[derive(Component, Debug)]
+pub struct Ranged {
+    /// The range of the effect.
+    pub range: i32,
+}
+
+/// Component describing an [Entity], provides healing
+/// to the targeted [Entity].
+#[derive(Component, Debug)]
+pub struct HealingEffect {
+    /// The amount of health, the [Entity]
+    /// restores on the target.
+    pub healing_amount: i32,
+}
+
+/// Component describing an [Entity], that damages a targeted [Entity]
+#[derive(Component, Debug)]
+pub struct DamageEffect {
+    /// The amount of damage, the [Entity] inflicts to its target.
+    pub damage_amount: i32,
+}
+
+/// Component holding a resource for a sound effect,
+/// emitted by an [Entity], e.g. using a skill/spell/item etc.
+#[derive(Component, Debug)]
+pub struct SoundEffect {
+    /// Path to the sound effect resource file
+    pub resource: String,
+}
+
+impl SoundEffect {
+    /// Uses the [audio_controller] to play the sound effect of
+    /// the given [SoundEffect] [Entity].
+    pub fn play(&self) {
+        audio::play_sound_effect(self.resource.as_str());
+    }
 }
 
 /// Shorthand function to register all needed
@@ -387,15 +429,19 @@ pub fn register_components(ecs: &mut World) {
     ecs.register::<Item>();
     ecs.register::<Loot>();
     ecs.register::<Player>();
-    ecs.register::<Potion>();
+    ecs.register::<Ranged>();
     ecs.register::<Monster>();
+    ecs.register::<UseItem>();
     ecs.register::<Position>();
     ecs.register::<DropItem>();
     ecs.register::<Collision>();
-    ecs.register::<UsePotion>();
     ecs.register::<Renderable>();
     ecs.register::<Statistics>();
     ecs.register::<PickupItem>();
+    ecs.register::<Consumable>();
     ecs.register::<MeleeAttack>();
+    ecs.register::<SoundEffect>();
+    ecs.register::<DamageEffect>();
     ecs.register::<DamageCounter>();
+    ecs.register::<HealingEffect>();
 }

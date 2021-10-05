@@ -49,11 +49,11 @@ pub fn get_drop_item_error_message(owner: &Entity, item: &Entity) -> String {
 
 /// Returns the error message for the `UsePotion` systen, when the insertion
 /// of a use potion request failes.
-/// 
+///
 /// # Arguments
 /// * `user`: The [Entity] that wants to drink the `potion`.
 /// * `potion`: The `potion` [Entity] the `user` wants to drink.
-/// 
+///
 pub fn get_drink_potion_error_message(user: &Entity, potion: &Entity) -> String {
     format!(
         "Unable to insert use potion request for user with id {} and potion with id {}",
@@ -64,10 +64,10 @@ pub fn get_drink_potion_error_message(user: &Entity, potion: &Entity) -> String 
 
 /// Returns the error message for `MeleeCombatSystem` system, used when the
 /// adding of a melee attack from a monster against the player fails.
-/// 
+///
 /// #A Arguments
 /// * `monster`: The [Entity] attacking the player.
-/// 
+///
 pub fn get_add_melee_damage_error_message(monster: &Entity) -> String {
     format!(
         "Adding melee attack from monster with id {} against player failed!",

@@ -49,26 +49,45 @@ pub const MESSAGE_BOX: Pallet = Pallet(rltk::WHITE, DEFAULT_BG_COLOR);
 /// The color for the player's health text on the ui.
 pub const PLAYER_HEALTH_TEXT: Pallet = Pallet(rltk::GOLD, DEFAULT_BG_COLOR);
 
+/// The color pallet for the player's mana text.
+pub const PLAYER_MANA_TEXT: Pallet = Pallet(rltk::GOLD, DEFAULT_BG_COLOR);
+
 /// The color for the player's health bar.
 pub const PLAYER_HEALTH_BAR: Pallet = Pallet(rltk::RED, DEFAULT_BG_COLOR);
+
+/// The color pallet for the player's mana bar.
+pub const PLAYER_MANA_BAR: Pallet = Pallet(rltk::BLUE, DEFAULT_BG_COLOR);
 
 /// The color of the mouse cursor tile.
 pub const MOUSE_CURSOR: U8Color = rltk::GOLD;
 
 /// Color for the tooltips.
-pub const TOOLTIP: Pallet = Pallet(rltk::WHITE, rltk::GOLDENROD);
+pub const TOOLTIP: Pallet = Pallet(rltk::GOLD, rltk::DIM_GRAY);
 
 /// Color pallet for the health potion item.
-pub const HEALTH_POTION: Pallet = Pallet(rltk::CRIMSON, DEFAULT_BG_COLOR);
+pub const POTION_HEALTH: Pallet = Pallet(rltk::PINK, DEFAULT_BG_COLOR);
 
 /// The color pallet for dialog titles.
-pub const DIALOG_TITLE: Pallet = Pallet(rltk::GOLD, DEFAULT_BG_COLOR);
+pub const DIALOG_TITLE: Pallet = Pallet(rltk::WHITE, DEFAULT_BG_COLOR);
 
 /// The color pallet for dialog dismiss/cancel buttons.
-pub const DIALOG_DISMISS_BUTTON: Pallet = Pallet(rltk::GOLDENROD, DEFAULT_BG_COLOR);
+pub const DIALOG_DISMISS_BUTTON: Pallet = Pallet(rltk::GOLD, DEFAULT_BG_COLOR);
 
 /// The color pallet for dialog frames.
 pub const DIALOG_FRAME: Pallet = Pallet(rltk::WHITE, DEFAULT_BG_COLOR);
 
 /// Color pallet for dialog options.
-pub const DIALOG_OPTION: Pallet = Pallet(rltk::GOLDENROD, DEFAULT_BG_COLOR);
+pub const DIALOG_OPTION: Pallet = Pallet(rltk::GOLD, DEFAULT_BG_COLOR);
+
+/// Color pallet for the magic missile scroll item.
+pub const SCROLL_MAGIC_MISSILE: Pallet = Pallet(rltk::WHITE, DEFAULT_BG_COLOR);
+
+/// [U8Color] of the tiles which are in range of the skill/spell/item
+/// the player is targeting with.
+pub const TILE_SELECTION: U8Color = rltk::PALEGOLDENROD;
+
+/// [U8Color] for the mouse cursor, when the player has selected a tile in range.
+pub const TILE_SELECTION_SUCCESS: U8Color = rltk::GREEN;
+
+/// [U8Color] for the mouse cursor, when the player selects a tile out of range.
+pub const TILE_SELECTION_FAILED: U8Color = rltk::RED;

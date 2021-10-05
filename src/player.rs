@@ -6,11 +6,10 @@ use rltk::{a_star_search, Point, Rltk, VirtualKeyCode};
 use specs::prelude::*;
 use specs::shred::Fetch;
 
-use crate::{DialogInterface, DialogOption, Loot, Name, Potion};
-
 use super::{
-    config, i32_to_alpha_key, Item, Map, MeleeAttack, Player, PlayerPathing, Position,
-    ProcessingState, State, Statistics, FOV,
+    config, dialog_factory, i32_to_alpha_key, DialogInterface, DialogOption, Item, Loot, Map,
+    MeleeAttack, Name, Player, PlayerPathing, Position, ProcessingState, Ranged, State, Statistics,
+    FOV,
 };
 
 /// Moves the [Player] entity through its stored [Position]
@@ -139,7 +138,7 @@ fn handle_new_click_to_move(ecs: &mut World, ctx: &Rltk) {
     }
 }
 
-/// Creates a new [PickupItem] request
+/// Creates a new [Loot] request
 /// for the player [Entity].
 ///
 /// # Arguments
@@ -186,14 +185,25 @@ fn show_inventory(ecs: &mut World, drop: bool) {
                 key: i32_to_alpha_key(counter),
                 args: vec![Box::new(entity), Box::new(*player), Box::new(drop)],
                 callback: Box::new(|world, _, args| {
+                    let ranged = world.read_storage::<Ranged>();
+
                     let item = *args[0].downcast_ref::<Entity>().unwrap();
                     let player = *args[1].downcast_ref::<Entity>().unwrap();
                     let is_dropping_item = *args[2].downcast_ref::<bool>().unwrap();
 
                     if is_dropping_item {
                         Item::drop_item(world, &player, &item);
+                        ProcessingState::Internal
                     } else {
-                        Potion::drink(world, &player, &item);
+                        if let Some(item_ranged) = ranged.get(item) {
+                            ProcessingState::PlayerIsTargeting {
+                                range: item_ranged.range,
+                                entity: item,
+                            }
+                        } else {
+                            Item::use_item(world, &player, &item);
+                            ProcessingState::Internal
+                        }
                     }
                 }),
             });
@@ -284,41 +294,14 @@ pub fn player_handle_input(game_state: &mut State, ctx: &mut Rltk) -> Processing
             VirtualKeyCode::I => show_inventory(&mut game_state.ecs, ctx.shift),
 
             // Menus
-            VirtualKeyCode::Escape => {
-                DialogInterface::register_dialog(
-                    &mut game_state.ecs,
-                    "Pause".to_string(),
-                    Some("What would you like to do in this moment of respite?".to_string()),
-                    vec![
-                        DialogOption {
-                            description: "Save".to_string(),
-                            key: VirtualKeyCode::S,
-                            args: vec![],
-                            callback: Box::new(|_, ctx, _| ctx.quit()),
-                        },
-                        DialogOption {
-                            description: "Load".to_string(),
-                            key: VirtualKeyCode::L,
-                            args: vec![],
-                            callback: Box::new(|_, ctx, _| ctx.quit()),
-                        },
-                        DialogOption {
-                            description: "Quit".to_string(),
-                            key: VirtualKeyCode::Q,
-                            args: vec![],
-                            callback: Box::new(|_, ctx, _| ctx.quit()),
-                        },
-                    ],
-                    true,
-                );
-            }
+            VirtualKeyCode::Escape => dialog_factory::register_pause_dialog(&mut game_state.ecs),
 
             _ => return ProcessingState::WaitingForInput,
         },
         // If no keyboard key was pressed, check if the player has clicked
         // selected a position with the mouse.
         None => {
-            if ctx.left_click {
+            if ctx.left_click && !ctx.shift {
                 handle_new_click_to_move(&mut game_state.ecs, ctx);
             }
             return ProcessingState::WaitingForInput;

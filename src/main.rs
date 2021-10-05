@@ -1,4 +1,4 @@
-#![deny(warnings)]
+// #![deny(warnings)]
 #![warn(missing_docs)]
 
 //! D&D and NetHack inspired dungeon crawler written in rust.
@@ -7,12 +7,15 @@ use rltk::RltkBuilder;
 use specs::prelude::*;
 
 mod config;
+mod dialog_factory;
 mod entity_factory;
 mod exceptions;
 mod rng;
 mod spawn_controller;
 mod swatch;
 mod ui_controller;
+
+mod audio;
 
 mod state;
 pub use state::*;
@@ -46,6 +49,8 @@ pub use data::*;
 
 mod scribbles;
 pub use scribbles::*;
+
+mod r;
 
 /// Bootstraps the game, registers components, initiates systems,
 /// creates entities and starts the rendering. After the bootstrapping
@@ -102,6 +107,17 @@ fn main() -> rltk::BError {
 
     // Set the initial processing state of the game
     game_state.ecs.insert(ProcessingState::Internal);
+
+    match audio::init() {
+        Err(error) => println!(
+            "An error occurred while initializing the audio controller: {}!",
+            error
+        ),
+        Ok(_) => {
+            audio::play_background(r::music::HELLISH_WAV);
+            audio::play_ambiance(r::ambiance::DUNGEON01_WAV);
+        }
+    }
 
     // Start the main loop
     rltk::main_loop(terminal, game_state)
