@@ -6,7 +6,7 @@
 
 # Naming schemas
 
-declare resource_package_name="r"
+declare resource_package_name="res"
 declare resource_base_module="mod.rs"
 declare resource_folder_name="resources"
 

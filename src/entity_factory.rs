@@ -3,7 +3,7 @@
 use specs::prelude::*;
 
 use super::{
-    r, rng, swatch, Collision, Consumable, HealingEffect, Item, Monster, Name, Player, Position,
+    res, rng, swatch, Collision, Consumable, HealingEffect, Item, Monster, Name, Player, Position,
     Renderable, Statistics, FOV,
 };
 use crate::{DamageEffect, Ranged, SoundEffect};
@@ -185,7 +185,7 @@ pub fn new_potion_health(ecs: &mut World, position: Position) -> Entity {
         .with(Consumable {})
         .with(HealingEffect { healing_amount: 8 })
         .with(SoundEffect {
-            resource: r::sfx::DRINKING_WAV.to_string(),
+            resource: res::sfx::DRINKING_WAV.to_string(),
         })
         .build()
 }
@@ -209,7 +209,7 @@ pub fn new_scroll_magic_missile(ecs: &mut World, position: Position) -> Entity {
         .with(Ranged { range: 6 })
         .with(DamageEffect { damage_amount: 16 })
         .with(SoundEffect {
-            resource: r::sfx::MAGIC_MISSILES_WAV.to_string(),
+            resource: res::sfx::MAGIC_MISSILES_WAV.to_string(),
         })
         .build()
 }

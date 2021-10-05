@@ -50,7 +50,7 @@ pub use data::*;
 mod scribbles;
 pub use scribbles::*;
 
-mod r;
+mod res;
 
 /// Bootstraps the game, registers components, initiates systems,
 /// creates entities and starts the rendering. After the bootstrapping
@@ -114,8 +114,8 @@ fn main() -> rltk::BError {
             error
         ),
         Ok(_) => {
-            audio::play_background(r::music::HELLISH_WAV);
-            audio::play_ambiance(r::ambiance::DUNGEON01_WAV);
+            audio::play_background(res::music::HELLISH_WAV);
+            audio::play_ambiance(res::ambiance::DUNGEON01_WAV);
         }
     }
 
