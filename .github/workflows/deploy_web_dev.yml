@@ -16,10 +16,12 @@ jobs:
       - uses: actions/checkout@v2
       - name: Download resoruces
         run: sh ./scripts/download_gdrive_file.sh https://drive.google.com/file/d/1ZEWyh9_QJ1l2_JzlfpPyth8LyGoavzvk
+        shell: bash
       - name: Unzip resources
         run: sh ./scripts/unzip_util.sh ./resources.zip
       - name: Index resources
         run: sh ./scripts/index_resources.sh
+        shell: bash
       - name: Install prerequisites
         run: sh ./scripts/init_web_assembly.sh
       - name: Build
