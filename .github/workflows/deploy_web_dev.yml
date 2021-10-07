@@ -14,6 +14,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: Set script permissions
+        run: chmod +x -R ./scripts
       - name: Download resoruces
         run: ./scripts/download_gdrive_file.sh https://drive.google.com/file/d/1ZEWyh9_QJ1l2_JzlfpPyth8LyGoavzvk
         shell: bash
